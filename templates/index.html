@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+{% block title %}YT Downloader — Toolbox{% endblock %}
+{% block nav_extra %}<a href="/yt/" class="active">YT Downloader</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>YT Downloader</h1>
+  <p>Download videos, MP3s, transcripts and comments. Powered by <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">yt-dlp</code></p>
+</div>
+
+<!-- URL (shared across all tabs) -->
+<div class="card">
+  <div class="card-label">Video URL</div>
+  <div class="input-group">
+    <input class="input" id="urlInput" type="url"
+      placeholder="https://www.youtube.com/watch?v=..."
+      autocomplete="off" spellcheck="false" oninput="updateCmd()">
+    <button class="btn btn-ghost" onclick="pasteURL()" style="white-space:nowrap;flex-shrink:0;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+      Paste
+    </button>
+  </div>
+</div>
+
+<!-- Playlist warning -->
+<div id="playlistWarning" style="display:none;margin-bottom:14px;padding:11px 14px;background:rgba(255,210,61,0.08);border:1px solid rgba(255,210,61,0.3);border-radius:10px;font-size:13px;color:var(--warn);display:none;align-items:center;gap:10px;">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  <span>Playlist URL detected — only the <strong>single video</strong> will be downloaded (<code style="font-family:var(--mono);font-size:11px;">--no-playlist</code> is always active).</span>
+</div>
+
+<!-- Save path (shared) -->
+<div class="card" style="padding-top:18px;padding-bottom:18px;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <label style="font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;flex-shrink:0;">Save to</label>
+    <input class="input" id="savePath" value="~/Downloads" spellcheck="false" oninput="updateCmd()" style="flex:1;">
+  </div>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:5px;">
+  <button class="tab-btn active" data-tab="video"      onclick="switchTab('video')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    Video
+  </button>
+  <button class="tab-btn" data-tab="mp3"        onclick="switchTab('mp3')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    MP3
+  </button>
+  <button class="tab-btn" data-tab="transcript" onclick="switchTab('transcript')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Transcript
+  </button>
+  <button class="tab-btn" data-tab="comments"   onclick="switchTab('comments')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Comments
+  </button>
+</div>
+
+<style>
+.tab-btn {
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:9px 8px; border:none; border-radius:8px; background:transparent;
+  color:var(--muted); font-family:var(--sans); font-size:13px; font-weight:600;
+  cursor:pointer; transition:all .15s;
+}
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { background:var(--surface2); color:var(--text); box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+.log-warn { color: var(--warn); }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+.btn-stop {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); padding: 11px 18px; border-radius: 9px;
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 7px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.btn-stop:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.btn-stop:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-stop.active { color: var(--accent); border-color: var(--accent); opacity: 1; }
+</style>
+
+<!-- ── TAB: VIDEO ─────────────────────────────────────────────────────────── -->
+<div class="tab-panel active" id="tab-video">
+  <div class="card">
+    <div class="card-label">Settings</div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Quality</label>
+        <select id="v-quality" onchange="updateCmd()">
+          <option value="bestvideo[height<=1080]+bestaudio/best[height<=1080]/best">1080p (default)</option>
+          <option value="bestvideo[height<=720]+bestaudio/best[height<=720]/best">720p</option>
+          <option value="bestvideo[height<=480]+bestaudio/best[height<=480]/best">480p</option>
+          <option value="bestvideo[height<=360]+bestaudio/best[height<=360]/best">360p</option>
+          <option value="bestaudio/best">Audio only</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Container</label>
+        <select id="v-format" onchange="updateCmd()">
+          <option value="mp4">MP4</option>
+          <option value="mkv">MKV</option>
+          <option value="webm">WebM</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Options</div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Embed subtitles</strong><span>Auto-generated captions baked in</span></div>
+      <div class="toggle" id="v-subs" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Android client</strong><span>Avoids nsig / bot-detection errors</span></div>
+      <div class="toggle on" id="v-android" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle" id="v-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+  </div>
+  <div class="cmd-box visible" id="cmd-video"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-video')">Copy</button><span id="cmdtext-video"></span></div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-primary" style="flex:1;" id="dlBtn-video" onclick="run('video')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Video
+    </button>
+    <button class="btn btn-stop" id="stopBtn-video" onclick="stopDownload()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Stop
+    </button>
+  </div>
+</div>
+
+<!-- ── TAB: MP3 ───────────────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-mp3">
+  <div class="card">
+    <div class="card-label">Audio Quality</div>
+    <div class="option-group">
+      <label>VBR quality (0 = best ~320kbps, 9 = smallest)</label>
+      <select id="mp3-quality" onchange="updateCmd()">
+        <option value="0">0 — Best (~320kbps VBR)</option>
+        <option value="2">2 — High (~190kbps VBR)</option>
+        <option value="5">5 — Medium (~130kbps VBR)</option>
+        <option value="9">9 — Small (~65kbps VBR)</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Options</div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Embed thumbnail</strong><span>Adds album art from video thumbnail (requires ffmpeg)</span></div>
+      <div class="toggle on" id="mp3-thumb" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Embed metadata</strong><span>Title, artist, album tags (requires ffmpeg)</span></div>
+      <div class="toggle on" id="mp3-meta" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Android client</strong><span>Avoids nsig / bot-detection errors</span></div>
+      <div class="toggle on" id="mp3-android" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle" id="mp3-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+  </div>
+  <div id="ffmpegNote" style="margin-bottom:14px;padding:10px 14px;background:rgba(255,210,61,0.07);border:1px solid rgba(255,210,61,0.25);border-radius:9px;font-size:12px;color:var(--warn);line-height:1.6;display:none;">
+    ⚠ <strong>ffmpeg not detected</strong> — thumbnail and metadata embedding will be skipped.<br>
+    Install ffmpeg: <code style="font-family:var(--mono);">brew install ffmpeg</code> (Mac) or <code style="font-family:var(--mono);">sudo apt install ffmpeg</code> (Linux)
+  </div>
+  <div id="ffmpegOk" style="margin-bottom:14px;padding:10px 14px;background:rgba(61,255,160,0.06);border:1px solid rgba(61,255,160,0.2);border-radius:9px;font-size:12px;color:var(--success);display:none;">
+    ✓ ffmpeg detected — thumbnail and metadata embedding enabled.
+  </div>
+  <div class="cmd-box visible" id="cmd-mp3"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-mp3')">Copy</button><span id="cmdtext-mp3"></span></div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-primary" style="flex:1;" id="dlBtn-mp3" onclick="run('mp3')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Download MP3
+    </button>
+    <button class="btn btn-stop" id="stopBtn-mp3" onclick="stopDownload()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Stop
+    </button>
+  </div>
+</div>
+
+<!-- ── TAB: TRANSCRIPT ───────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-transcript">
+  <div class="card">
+    <div class="card-label">Settings</div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Language code</label>
+        <input class="input" id="tr-lang" value="en" placeholder="en, zh, es, fr…" oninput="updateCmd()">
+      </div>
+      <div class="option-group">
+        <label>Output format</label>
+        <select id="tr-format" onchange="updateCmd()">
+          <option value="srt">SRT (most compatible)</option>
+          <option value="vtt">VTT (web)</option>
+          <option value="json3">JSON3 (raw data)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Subtitle Sources</div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Auto-generated captions</strong><span>YouTube's ASR-generated subtitles</span></div>
+      <div class="toggle on" id="tr-auto" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Manual subtitles</strong><span>Human-made captions (if available)</span></div>
+      <div class="toggle on" id="tr-manual" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle" id="tr-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <strong>Remove timestamps</strong>
+        <span>Also saves a clean <code style="font-family:var(--mono);font-size:11px;">.txt</code> with dialogue only — no timing codes</span>
+      </div>
+      <div class="toggle" id="tr-strip" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+  </div>
+  <div class="cmd-box visible" id="cmd-transcript"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-transcript')">Copy</button><span id="cmdtext-transcript"></span></div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-primary" style="flex:1;" id="dlBtn-transcript" onclick="run('transcript')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Download Transcript
+    </button>
+    <button class="btn btn-stop" id="stopBtn-transcript" onclick="stopDownload()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Stop
+    </button>
+  </div>
+</div>
+
+<!-- ── TAB: COMMENTS ─────────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-comments">
+  <div class="card">
+    <div class="card-label">Settings</div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Max comments to fetch</label>
+        <select id="cm-max" onchange="updateCmd()">
+          <option value="100">100 (fast)</option>
+          <option value="200" selected>200 (default)</option>
+          <option value="500">500</option>
+          <option value="1000">1000 (slow)</option>
+          <option value="all">All (very slow)</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Sort by</label>
+        <select id="cm-sort" onchange="updateCmd()">
+          <option value="top">Top (most liked)</option>
+          <option value="new">Newest first</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.6;">
+      💡 Comments are saved as a readable <code style="font-family:var(--mono);">.comments.txt</code> file — one comment per block with author, likes, and text. Replies are indented. The raw JSON is deleted automatically.
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Options</div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-fetch if file exists</span></div>
+      <div class="toggle" id="cm-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+  </div>
+  <div class="cmd-box visible" id="cmd-comments"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-comments')">Copy</button><span id="cmdtext-comments"></span></div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-primary" style="flex:1;" id="dlBtn-comments" onclick="run('comments')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Download Comments
+    </button>
+    <button class="btn btn-stop" id="stopBtn-comments" onclick="stopDownload()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Stop
+    </button>
+  </div>
+</div>
+
+<!-- Terminal (shared) -->
+<div class="terminal" id="terminal" style="margin-top:14px;">
+  <div class="terminal-header">
+    <div class="term-dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+    <div class="term-title" id="termTitle">yt-dlp · live output</div>
+    <button onclick="document.getElementById('termBody').innerHTML=''"
+      style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:11px;">clear</button>
+  </div>
+  <div class="progress-wrap visible" id="progressWrap"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="terminal-body" id="termBody"></div>
+</div>
+
+<!-- Status -->
+<div class="status-bar" style="margin-top:14px;">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">Ready — paste a URL and choose a tab</span>
+</div>
+
+<script>
+// ── Tab switching ──────────────────────────────────────────────────────────
+let activeTab = 'video';
+let activeTabRunning = null;
+function switchTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  updateCmd();
+  if (name === 'mp3') checkFfmpeg();
+}
+
+function checkFfmpeg() {
+  fetch('/yt/check_ffmpeg')
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('ffmpegNote').style.display = d.available ? 'none' : 'block';
+      document.getElementById('ffmpegOk').style.display   = d.available ? 'block' : 'none';
+    })
+    .catch(() => {});
+}
+
+// ── Command builders ───────────────────────────────────────────────────────
+const on = id => document.getElementById(id)?.classList.contains('on');
+const val = id => document.getElementById(id)?.value || '';
+
+function buildVideo() {
+  const url = val('urlInput') || '<URL>';
+  const q   = val('v-quality'); const fmt = val('v-format'); const p = val('savePath') || '~/Downloads';
+  const isAudio = q.startsWith('bestaudio');
+  let c = ['yt-dlp', '-f', `'${q}'`];
+  if (isAudio) c.push('-x', '--audio-format', 'mp3');
+  else c.push('--merge-output-format', fmt);
+  c.push('-o', `'${p}/%(title)s.%(ext)s'`, '--progress', '--no-mtime', '--newline');
+  if (on('v-android'))   c.push('--extractor-args', "'youtube:player_client=android'");
+  if (on('v-overwrite')) c.push('--no-continue', '--force-overwrites');
+  if (on('v-subs'))      c.push('--write-auto-sub', '--embed-subs');
+  c.push(`'${url}'`); return c.join(' ');
+}
+
+function buildMp3() {
+  const url = val('urlInput') || '<URL>';
+  const q   = val('mp3-quality'); const p = val('savePath') || '~/Downloads';
+  let c = ['yt-dlp', '-f', 'bestaudio/best', '-x', '--audio-format', 'mp3', '--audio-quality', q,
+           '-o', `'${p}/%(title)s.%(ext)s'`, '--progress', '--no-mtime', '--newline'];
+  if (on('mp3-android'))   c.push('--extractor-args', "'youtube:player_client=android'");
+  if (on('mp3-thumb'))     c.push('--embed-thumbnail', '--convert-thumbnails', 'jpg');
+  if (on('mp3-meta'))      c.push('--embed-metadata', '--add-metadata');
+  if (on('mp3-overwrite')) c.push('--no-continue', '--force-overwrites');
+  c.push(`'${url}'`); return c.join(' ');
+}
+
+function buildTranscript() {
+  const url = val('urlInput') || '<URL>';
+  const lang = val('tr-lang') || 'en'; const fmt = val('tr-format'); const p = val('savePath') || '~/Downloads';
+  let c = ['yt-dlp', '--no-playlist', '--skip-download', '-o', `'${p}/%(title)s.%(ext)s'`, '--newline'];
+  if (on('tr-manual')) c.push('--write-sub');
+  if (on('tr-auto'))   c.push('--write-auto-sub');
+  c.push('--sub-langs', lang, '--sub-format', `${fmt}/best`);
+  if (on('tr-overwrite')) c.push('--force-overwrites');
+  if (on('tr-strip'))  c.push('# + strip timestamps → .txt');
+  c.push(`'${url}'`); return c.join(' ');
+}
+
+function buildComments() {
+  const url = val('urlInput') || '<URL>';
+  const max = val('cm-max'); const sort = val('cm-sort') || 'top'; const p = val('savePath') || '~/Downloads';
+  let c = ['yt-dlp', '--no-playlist', '--skip-download', '--write-info-json', '--write-comments',
+           '-o', `'${p}/%(title)s.%(ext)s'`, '--newline'];
+  if (max !== 'all') c.push('--extractor-args', `'youtube:max_comments=${max},comment_sort=${sort}'`);
+  if (on('cm-overwrite')) c.push('--force-overwrites');
+  c.push(`'${url}'`); c.push('# → saves as .comments.txt'); return c.join(' ');
+}
+
+const builders = { video: buildVideo, mp3: buildMp3, transcript: buildTranscript, comments: buildComments };
+
+function updateCmd() {
+  const fn = builders[activeTab];
+  if (fn) document.getElementById('cmdtext-' + activeTab).textContent = fn();
+  // Show playlist warning
+  const url = val('urlInput');
+  const warn = document.getElementById('playlistWarning');
+  const isPlaylist = url && (url.includes('list=') || url.includes('/playlist'));
+  warn.style.display = isPlaylist ? 'flex' : 'none';
+}
+updateCmd();
+
+// ── Paste / copy ───────────────────────────────────────────────────────────
+async function pasteURL() {
+  try { document.getElementById('urlInput').value = await navigator.clipboard.readText(); updateCmd(); }
+  catch { document.getElementById('urlInput').focus(); }
+}
+function copyCmd(boxId) {
+  const t = document.getElementById(boxId).querySelector('span').textContent;
+  navigator.clipboard.writeText(t).then(() => {
+    const b = document.querySelector(`#${boxId} .cmd-copy`);
+    b.textContent = 'Copied!'; b.style.color = 'var(--success)';
+    setTimeout(() => { b.textContent = 'Copy'; b.style.color = ''; }, 1600);
+  });
+}
+
+// ── Terminal ───────────────────────────────────────────────────────────────
+function log(text, cls='') {
+  const body = document.getElementById('termBody');
+  const old = body.querySelector('.cursor'); if (old) old.remove();
+  const line = document.createElement('span');
+  line.className = 'log-line ' + cls; line.textContent = text;
+  body.appendChild(line); body.appendChild(document.createTextNode('\n'));
+  const cur = document.createElement('span'); cur.className = 'cursor'; body.appendChild(cur);
+  body.scrollTop = body.scrollHeight;
+}
+function setStatus(text, state) {
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusDot').className = 'status-dot ' + (state || '');
+}
+function setProgress(pct) { document.getElementById('progressFill').style.width = pct + '%'; }
+
+// ── Run ────────────────────────────────────────────────────────────────────
+const endpoints = { video: '/yt/download', mp3: '/yt/mp3', transcript: '/yt/transcript', comments: '/yt/comments' };
+const tabLabels  = { video: 'Downloading video…', mp3: 'Converting to MP3…', transcript: 'Fetching transcript…', comments: 'Fetching comments…' };
+
+function stopDownload() {
+  fetch('/yt/stop', { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      log('⏹ ' + d.msg, 'log-warn');
+      setStatus('Stopped', '');
+      if (activeTabRunning) {
+        document.getElementById('dlBtn-' + activeTabRunning).disabled = false;
+        document.getElementById('stopBtn-' + activeTabRunning).disabled = true;
+        document.getElementById('stopBtn-' + activeTabRunning).classList.remove('active');
+        activeTabRunning = null;
+      }
+    });
+}
+
+function run(tab) {
+  const url = val('urlInput').trim();
+  if (!url) {
+    const inp = document.getElementById('urlInput');
+    inp.focus(); inp.style.borderColor = 'var(--accent)';
+    setTimeout(() => inp.style.borderColor = '', 1500); return;
+  }
+
+  document.getElementById('terminal').classList.add('visible');
+  document.getElementById('termBody').innerHTML = '';
+  document.getElementById('dlBtn-' + tab).disabled = true;
+  document.getElementById('stopBtn-' + tab).disabled = false;
+  document.getElementById('stopBtn-' + tab).classList.add('active');
+  activeTabRunning = tab;
+  document.getElementById('termTitle').textContent = `yt-dlp · ${tab}`;
+  setStatus(tabLabels[tab] || 'Working…', 'active');
+  setProgress(0);
+
+  // Build payload per tab
+  const save_path = val('savePath');
+  const payloads = {
+    video: {
+      url, save_path, quality: val('v-quality'), format: val('v-format'),
+      subs: on('v-subs') ? 'true':'false', android: on('v-android') ? 'true':'false',
+      overwrite: on('v-overwrite') ? 'true':'false'
+    },
+    mp3: {
+      url, save_path, audio_quality: val('mp3-quality'),
+      thumbnail: on('mp3-thumb') ? 'true':'false', metadata: on('mp3-meta') ? 'true':'false',
+      android: on('mp3-android') ? 'true':'false', overwrite: on('mp3-overwrite') ? 'true':'false'
+    },
+    transcript: {
+      url, save_path, lang: val('tr-lang'), sub_format: val('tr-format'),
+      auto_subs: on('tr-auto') ? 'true':'false', manual_subs: on('tr-manual') ? 'true':'false',
+      overwrite: on('tr-overwrite') ? 'true':'false',
+      strip_timestamps: on('tr-strip') ? 'true':'false',
+    },
+    comments: {
+      url, save_path, max_comments: val('cm-max'),
+      sort_by: val('cm-sort'),
+      overwrite: on('cm-overwrite') ? 'true':'false'
+    }
+  };
+
+  fetch(endpoints[tab], {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payloads[tab]),
+  }).then(res => {
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    function read() {
+      reader.read().then(({ done, value }) => {
+        if (done) { document.getElementById('dlBtn-' + tab).disabled = false; return; }
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split('\n\n'); buf = parts.pop();
+        parts.forEach(raw => parseSSE(raw, tab)); read();
+      });
+    }
+    read();
+  }).catch(err => {
+    log('Connection error: ' + err, 'log-error'); setStatus('Error', 'error');
+    document.getElementById('dlBtn-' + tab).disabled = false;
+  });
+}
+
+function parseSSE(raw, tab) {
+  if (!raw.trim()) return;
+  let event = 'log', data = '';
+  raw.split('\n').forEach(line => {
+    if (line.startsWith('event: ')) event = line.slice(7).trim();
+    if (line.startsWith('data: ')) { try { data = JSON.parse(line.slice(6)).text; } catch { data = line.slice(6); } }
+  });
+  if (!data) return;
+  switch (event) {
+    case 'cmd':      log('$ ' + data, 'log-cmd'); log(''); setStatus(tabLabels[tab] || 'Working…', 'active'); break;
+    case 'log':      log(data, data.startsWith('[') ? 'log-dim' : 'log-info'); break;
+    case 'progress': {
+      log(data, 'log-progress');
+      const m = data.match(/(\d+(?:\.\d+)?)%/);
+      if (m) setProgress(parseFloat(m[1]));
+      setStatus((tabLabels[tab] || '') + (m ? ' ' + m[1] + '%' : ''), 'active');
+      break;
+    }
+    case 'done':
+      log(''); log(data, 'log-success');
+      setStatus('Done — saved to ' + val('savePath'), 'done'); setProgress(100);
+      document.getElementById('dlBtn-' + tab).disabled = false;
+      document.getElementById('stopBtn-' + tab).disabled = true;
+      document.getElementById('stopBtn-' + tab).classList.remove('active');
+      activeTabRunning = null; break;
+    case 'error':
+      log(data, 'log-error'); setStatus('Error — see terminal', 'error');
+      document.getElementById('dlBtn-' + tab).disabled = false;
+      document.getElementById('stopBtn-' + tab).disabled = true;
+      document.getElementById('stopBtn-' + tab).classList.remove('active');
+      activeTabRunning = null; break;
+    case 'stopped':
+      log(data, 'log-warn'); setStatus('Stopped by user', '');
+      document.getElementById('dlBtn-' + tab).disabled = false;
+      document.getElementById('stopBtn-' + tab).disabled = true;
+      document.getElementById('stopBtn-' + tab).classList.remove('active');
+      activeTabRunning = null; break;
+    case 'no_transcript':
+      log(''); log('⚠  ' + data, 'log-warn');
+      setStatus('No transcript available', '');
+      document.getElementById('dlBtn-' + tab).disabled = false;
+      document.getElementById('stopBtn-' + tab).disabled = true;
+      document.getElementById('stopBtn-' + tab).classList.remove('active');
+      activeTabRunning = null; break;
+  }
+}
+</script>
+{% endblock %}
