@@ -6,22 +6,17 @@
 <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
   <div>
     <h1>OleVOD Downloader</h1>
-    <p>Download videos from <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">olevod.com</code> — auto-detects the stream URL for you.</p>
+    <p>Download videos from <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">olevod.com</code></p>
   </div>
-  <a href="/yt/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">
-    ← YT Downloader
-  </a>
+  <a href="/yt/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">← YT Downloader</a>
 </div>
 
 <!-- Dependency status -->
 <div id="depStatus" style="margin-bottom:16px;"></div>
 
-<!-- ── STEP 1: Page URL + Auto-detect ──────────────────────────────────────── -->
+<!-- ── STEP 1 ──────────────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="card-label">
-    <span style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;">Step 1</span>
-    &nbsp;Paste the olevod.com movie/episode page URL
-  </div>
+  <div class="card-label"><span class="step-badge">1</span> olevod.com page URL</div>
   <div class="input-group" style="margin-bottom:10px;">
     <input class="input" id="pageUrl" type="url"
       placeholder="https://www.olevod.com/index.php/vod/play/…"
@@ -32,27 +27,20 @@
     </button>
   </div>
   <button class="btn btn-primary btn-full" id="sniffBtn" onclick="runSniff()">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     Auto-detect Stream URL
   </button>
-  <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6;">
-    Opens a headless browser, loads the page, and automatically intercepts the m3u8 video stream URL.
-    Requires <code style="font-family:var(--mono);">playwright</code> —
-    install with: <code style="font-family:var(--mono);">pip install playwright && playwright install chromium</code>
+  <div style="margin-top:9px;font-size:12px;color:var(--muted);">
+    Opens a headless browser and intercepts the m3u8 stream automatically.
+    Requires <code style="font-family:var(--mono);">playwright install chromium</code>.
   </div>
 </div>
 
-<!-- ── STEP 2: Stream URL (auto-filled or manual) ──────────────────────────── -->
+<!-- ── STEP 2 ──────────────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="card-label">
-    <span style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;">Step 2</span>
-    &nbsp;Stream URL — auto-filled above, or paste manually
-  </div>
-  <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
-    If auto-detect fails, get it manually: open DevTools
-    (<kbd>F12</kbd> / <kbd>Cmd ⌘ + Opt + I</kbd>) → Network tab →
-    filter <code style="font-family:var(--mono);font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:4px;">.m3u8</code> →
-    copy the Request URL.
+  <div class="card-label"><span class="step-badge">2</span> Stream URL — auto-filled, or paste manually</div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+    If auto-detect fails: DevTools (<kbd>F12</kbd>) → Network → filter <code style="font-family:var(--mono);font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:4px;">.m3u8</code> → copy Request URL.
   </div>
   <div class="input-group">
     <input class="input" id="streamUrl" type="url"
@@ -65,36 +53,22 @@
   </div>
 </div>
 
-<!-- ── STEP 3: Save options + Download ─────────────────────────────────────── -->
+<!-- ── STEP 3 ──────────────────────────────────────────────────────────────── -->
 <div class="card">
-  <div class="card-label">
-    <span style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;">Step 3</span>
-    &nbsp;Save options
-  </div>
+  <div class="card-label"><span class="step-badge">3</span> Save options</div>
   <div style="display:flex;flex-direction:column;gap:10px;">
     <div style="display:flex;align-items:center;gap:12px;">
       <label style="font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;flex-shrink:0;width:68px;">Filename</label>
       <input class="input" id="filename" placeholder="my-movie  (blank = random)" spellcheck="false" oninput="updateCmd()" style="flex:1;">
     </div>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <label style="font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;flex-shrink:0;width:68px;">Save to</label>
-      <input class="input" id="savePath" value="~/Downloads" spellcheck="false" oninput="updateCmd()" style="flex:1;">
-    </div>
   </div>
 </div>
 
-<!-- Command preview -->
-<div class="cmd-box visible" id="cmd-box">
-  <div class="cmd-box-label">Generated ffmpeg command</div>
-  <button class="cmd-copy" onclick="copyCmd()">Copy</button>
-  <span id="cmdtext"></span>
-</div>
-
-<!-- Download button -->
-<div style="display:flex;gap:10px;">
+<!-- Process button -->
+<div style="display:flex;gap:10px;margin-bottom:14px;">
   <button class="btn btn-primary" style="flex:1;" id="dlBtn" onclick="runDownload()">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Download Video
+    Process Video
   </button>
   <button class="btn btn-stop" id="stopBtn" onclick="stopAction()" disabled>
     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
@@ -102,17 +76,35 @@
   </button>
 </div>
 
+<!-- ── Download link (shown after processing) ─────────────────────────────── -->
+<div id="downloadBanner" style="display:none;margin-bottom:14px;padding:16px 18px;
+  background:rgba(61,255,160,0.06);border:1px solid rgba(61,255,160,0.25);
+  border-radius:12px;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <div>
+    <div style="font-size:14px;font-weight:700;color:var(--success);margin-bottom:3px;">✓ Video ready</div>
+    <div style="font-size:12px;color:var(--muted);" id="bannerMeta"></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0;">
+    <a id="downloadLink" href="#" class="btn btn-primary" style="text-decoration:none;" download>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download MP4
+    </a>
+    <button id="deleteBtn" onclick="deleteFile()" class="btn btn-ghost" style="color:var(--muted);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Delete from server
+    </button>
+  </div>
+</div>
+
 <!-- Terminal -->
-<div class="terminal" id="terminal" style="margin-top:14px;">
+<div class="terminal" id="terminal" style="margin-top:0;">
   <div class="terminal-header">
     <div class="term-dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
     <div class="term-title" id="termTitle">olevod · output</div>
     <button onclick="document.getElementById('termBody').innerHTML=''"
       style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:11px;">clear</button>
   </div>
-  <div class="progress-wrap visible" id="progressWrap">
-    <div class="progress-fill" id="progressFill"></div>
-  </div>
+  <div class="progress-wrap visible"><div class="progress-fill" id="progressFill"></div></div>
   <div class="terminal-body" id="termBody"></div>
 </div>
 
@@ -122,70 +114,43 @@
   <span id="statusText">Ready</span>
 </div>
 
+
+
 <style>
-kbd {
-  font-family: var(--mono); font-size: 11px;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 4px; padding: 1px 6px; color: var(--muted);
-}
-.btn-stop {
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--muted); padding: 11px 18px; border-radius: 9px;
-  font-family: var(--sans); font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 7px;
-  white-space: nowrap; flex-shrink: 0;
-}
-.btn-stop:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
-.btn-stop:disabled { opacity: 0.3; cursor: not-allowed; }
-.btn-stop.active { color: var(--accent); border-color: var(--accent); opacity: 1; }
-.dep-ok  { color: var(--success); }
-.dep-bad { color: var(--warn); }
+kbd { font-family:var(--mono);font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--muted); }
+.step-badge { display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;margin-right:4px; }
+.btn-stop { background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:11px 18px;border-radius:9px;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:7px;white-space:nowrap;flex-shrink:0; }
+.btn-stop:hover:not(:disabled) { color:var(--accent);border-color:var(--accent); }
+.btn-stop:disabled { opacity:.3;cursor:not-allowed; }
+.btn-stop.active { color:var(--accent);border-color:var(--accent);opacity:1; }
+.dep-ok  { color:var(--success); }
+.dep-bad { color:var(--warn); }
+.file-row { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;flex-wrap:wrap; }
+.file-row:last-child { margin-bottom:0; }
 </style>
 
 <script>
 const val = id => document.getElementById(id)?.value || '';
 
-// ── Dependency check ───────────────────────────────────────────────────────
-fetch('/olevod/check_deps')
-  .then(r => r.json())
-  .then(d => {
-    const lines = [];
-    lines.push(d.ffmpeg
-      ? '<span class="dep-ok">✓ ffmpeg detected</span>'
-      : '<span class="dep-bad">✗ ffmpeg missing — brew install ffmpeg</span>');
-    lines.push(d.playwright
-      ? '<span class="dep-ok">✓ playwright detected</span>'
-      : '<span class="dep-bad">✗ playwright missing — pip install playwright && playwright install chromium</span>');
-    document.getElementById('depStatus').innerHTML =
-      `<div style="padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:var(--mono);font-size:12px;line-height:1.9;">${lines.join('<br>')}</div>`;
-  }).catch(() => {});
+
+// ── Dep check ──────────────────────────────────────────────────────────────
+fetch('/olevod/check_deps').then(r=>r.json()).then(d=>{
+  const lines = [
+    d.ffmpeg     ? '<span class="dep-ok">✓ ffmpeg</span>'     : '<span class="dep-bad">✗ ffmpeg missing — brew install ffmpeg</span>',
+    d.playwright ? '<span class="dep-ok">✓ playwright</span>' : '<span class="dep-bad">✗ playwright missing — pip install playwright && playwright install chromium</span>',
+  ];
+  document.getElementById('depStatus').innerHTML =
+    `<div style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:var(--mono);font-size:12px;line-height:1.9;">${lines.join('<br>')}</div>`;
+}).catch(()=>{});
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function updateCmd() {
-  const url  = val('streamUrl') || '<m3u8-url>';
-  const fn   = val('filename')  || '<output>';
-  const path = val('savePath')  || '~/Downloads';
-  document.getElementById('cmdtext').textContent =
-    `ffmpeg -i '${url}' -c copy -bsf:a aac_adtstoasc -movflags +faststart '${path}/${fn}.mp4' -y`;
-}
-updateCmd();
+function updateCmd() {}
 
 async function pasteField(id) {
-  try {
-    document.getElementById(id).value = await navigator.clipboard.readText();
-    updateCmd();
-  } catch { document.getElementById(id).focus(); }
+  try { document.getElementById(id).value = await navigator.clipboard.readText(); }
+  catch { document.getElementById(id).focus(); }
 }
 
-function copyCmd() {
-  navigator.clipboard.writeText(document.getElementById('cmdtext').textContent).then(() => {
-    const b = document.querySelector('.cmd-copy');
-    b.textContent = 'Copied!'; b.style.color = 'var(--success)';
-    setTimeout(() => { b.textContent = 'Copy'; b.style.color = ''; }, 1600);
-  });
-}
-
-// ── Terminal helpers ───────────────────────────────────────────────────────
 function log(text, cls='') {
   const body = document.getElementById('termBody');
   const old = body.querySelector('.cursor'); if (old) old.remove();
@@ -197,11 +162,9 @@ function log(text, cls='') {
 }
 function setStatus(text, state) {
   document.getElementById('statusText').textContent = text;
-  document.getElementById('statusDot').className = 'status-dot ' + (state || '');
+  document.getElementById('statusDot').className = 'status-dot ' + (state||'');
 }
-function setProgress(pct) {
-  document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
-}
+function setProgress(pct) { document.getElementById('progressFill').style.width = Math.min(pct,100)+'%'; }
 function setBusy(label, termLabel) {
   document.getElementById('terminal').classList.add('visible');
   document.getElementById('termBody').innerHTML = '';
@@ -210,8 +173,8 @@ function setBusy(label, termLabel) {
   document.getElementById('dlBtn').disabled = true;
   document.getElementById('stopBtn').disabled = false;
   document.getElementById('stopBtn').classList.add('active');
-  setStatus(label, 'active');
-  setProgress(0);
+  document.getElementById('downloadBanner').style.display = 'none';
+  setStatus(label, 'active'); setProgress(0);
 }
 function setIdle() {
   document.getElementById('sniffBtn').disabled = false;
@@ -220,36 +183,29 @@ function setIdle() {
   document.getElementById('stopBtn').classList.remove('active');
 }
 
-// ── Stop ───────────────────────────────────────────────────────────────────
 function stopAction() {
-  fetch('/olevod/stop', { method: 'POST' })
-    .then(r => r.json())
-    .then(d => { log('⏹ ' + d.msg, 'log-warn'); setStatus('Stopped', ''); setIdle(); });
+  fetch('/olevod/stop',{method:'POST'}).then(r=>r.json()).then(d=>{
+    log('⏹ '+d.msg,'log-warn'); setStatus('Stopped',''); setIdle();
+  });
 }
 
-// ── SSE stream reader (shared) ─────────────────────────────────────────────
+// ── SSE reader ─────────────────────────────────────────────────────────────
 function readSSE(endpoint, payload, onEvent) {
   fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).then(res => {
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
+  }).then(res=>{
+    const reader=res.body.getReader(); const dec=new TextDecoder(); let buf='';
     function read() {
-      reader.read().then(({ done, value }) => {
-        if (done) { setIdle(); return; }
-        buf += dec.decode(value, { stream: true });
-        const parts = buf.split('\n\n'); buf = parts.pop();
-        parts.forEach(raw => {
-          if (!raw.trim()) return;
-          let event = 'log', data = '';
-          raw.split('\n').forEach(line => {
-            if (line.startsWith('event: ')) event = line.slice(7).trim();
-            if (line.startsWith('data: ')) {
-              try { data = JSON.parse(line.slice(6)).text; } catch { data = line.slice(6); }
-            }
+      reader.read().then(({done,value})=>{
+        if(done){ setIdle(); return; }
+        buf += dec.decode(value,{stream:true});
+        const parts=buf.split('\n\n'); buf=parts.pop();
+        parts.forEach(raw=>{
+          if(!raw.trim()) return;
+          let event='log', data='';
+          raw.split('\n').forEach(line=>{
+            if(line.startsWith('event: ')) event=line.slice(7).trim();
+            if(line.startsWith('data: ')){ try{data=JSON.parse(line.slice(6)).text;}catch{data=line.slice(6);} }
           });
           onEvent(event, data);
         });
@@ -257,94 +213,79 @@ function readSSE(endpoint, payload, onEvent) {
       });
     }
     read();
-  }).catch(err => {
-    log('Connection error: ' + err, 'log-error');
-    setStatus('Error', 'error');
-    setIdle();
-  });
+  }).catch(err=>{ log('Connection error: '+err,'log-error'); setStatus('Error','error'); setIdle(); });
 }
 
-// ── Step 1: Auto-sniff ─────────────────────────────────────────────────────
+// ── Sniff ──────────────────────────────────────────────────────────────────
 function runSniff() {
   const pageUrl = val('pageUrl').trim();
-  if (!pageUrl) {
-    const inp = document.getElementById('pageUrl');
-    inp.focus(); inp.style.borderColor = 'var(--accent)';
-    setTimeout(() => inp.style.borderColor = '', 1500); return;
-  }
-
-  setBusy('Launching browser…', 'olevod · detecting stream');
-
-  readSSE('/olevod/sniff', { page_url: pageUrl, timeout: 30 }, (event, data) => {
-    switch (event) {
-      case 'log':
-        log(data, 'log-dim'); break;
+  if(!pageUrl){ highlight('pageUrl'); return; }
+  setBusy('Launching browser…','olevod · detecting stream');
+  readSSE('/olevod/sniff', {page_url:pageUrl, timeout:30}, (event, data)=>{
+    switch(event) {
+      case 'log':     log(data,'log-dim'); break;
       case 'sniffed':
-        // Auto-fill the stream URL field
         document.getElementById('streamUrl').value = data;
-        updateCmd();
-        log('');
-        log('✓ Stream URL captured — ready to download', 'log-success');
-        break;
-      case 'done':
-        setStatus('Stream URL detected ✓ — click Download Video', 'done'); break;
-      case 'error':
-        log('✗ ' + data, 'log-error');
-        setStatus('Detection failed — paste URL manually', 'error'); break;
-      case 'stopped':
-        log(data, 'log-warn'); setStatus('Stopped', ''); break;
+        log(''); log('✓ Stream URL captured','log-success'); break;
+      case 'done':    setStatus('Stream URL detected ✓ — click Process Video','done'); break;
+      case 'error':   log('✗ '+data,'log-error'); setStatus('Detection failed — paste URL manually','error'); break;
+      case 'stopped': log(data,'log-warn'); setStatus('Stopped',''); break;
     }
   });
 }
 
-// ── Step 3: Download ───────────────────────────────────────────────────────
+// ── Download ───────────────────────────────────────────────────────────────
 function runDownload() {
   const streamUrl = val('streamUrl').trim();
-  if (!streamUrl) {
-    const inp = document.getElementById('streamUrl');
-    inp.focus(); inp.style.borderColor = 'var(--accent)';
-    setTimeout(() => inp.style.borderColor = '', 1500); return;
-  }
-
+  if(!streamUrl){ highlight('streamUrl'); return; }
   const pageUrl = val('pageUrl').trim();
-  setBusy('Connecting to stream…', 'olevod · ffmpeg');
-
+  setBusy('Connecting to stream…','olevod · ffmpeg');
   readSSE('/olevod/download', {
     stream_url: streamUrl,
     referer:    pageUrl || 'https://www.olevod.com/',
     filename:   val('filename'),
-    save_path:  val('savePath'),
-  }, (event, data) => {
-    switch (event) {
-      case 'cmd':
-        log('$ ' + data, 'log-cmd'); log(''); break;
-      case 'log':
-        log(data, data.toLowerCase().includes('error') ? 'log-error' : 'log-dim'); break;
+  }, (event, data)=>{
+    switch(event) {
+      case 'cmd':     log('$ '+data,'log-cmd'); log(''); break;
+      case 'log':     log(data, data.toLowerCase().includes('error')?'log-error':'log-dim'); break;
       case 'progress': {
-        const m = data.match(/([\d.]+)%/);
-        if (m) { setProgress(parseFloat(m[1])); setStatus('Downloading… ' + m[1] + '%', 'active'); }
-        else   { setStatus('Downloading… ' + data, 'active'); }
-        const body = document.getElementById('termBody');
-        let last = body.querySelector('.log-progress-live');
-        if (!last) {
-          last = document.createElement('span');
-          last.className = 'log-line log-progress log-progress-live';
-          body.appendChild(last); body.appendChild(document.createTextNode('\n'));
-        }
-        last.textContent = '  ↓  ' + data;
-        body.scrollTop = body.scrollHeight;
+        const m=data.match(/([\d.]+)%/);
+        if(m){ setProgress(parseFloat(m[1])); setStatus('Downloading… '+m[1]+'%','active'); }
+        else  { setStatus('Downloading… '+data,'active'); }
+        const body=document.getElementById('termBody');
+        let last=body.querySelector('.log-progress-live');
+        if(!last){ last=document.createElement('span'); last.className='log-line log-progress log-progress-live'; body.appendChild(last); body.appendChild(document.createTextNode('\n')); }
+        last.textContent='  ↓  '+data; body.scrollTop=body.scrollHeight;
         break;
       }
-      case 'done':
-        log(''); log('✓ ' + data, 'log-success');
-        setStatus('Done — ' + data, 'done'); setProgress(100); break;
-      case 'error':
-        log(''); log('✗ ' + data, 'log-error');
-        setStatus('Error — see terminal', 'error'); break;
-      case 'stopped':
-        log(data, 'log-warn'); setStatus('Stopped by user', ''); break;
+      case 'ready': {
+        const info = JSON.parse(data);
+        _currentToken = info.token;
+        document.getElementById('downloadLink').href = `/olevod/serve/${info.token}`;
+        document.getElementById('bannerMeta').textContent = `${info.filename}.mp4  ·  ${info.size_mb} MB`;
+        document.getElementById('downloadBanner').style.display = 'flex';
+        break;
+      }
+      case 'done':    log(''); log('✓ '+data,'log-success'); setStatus('Done — use the download button above','done'); setProgress(100); break;
+      case 'error':   log(''); log('✗ '+data,'log-error'); setStatus('Error — see terminal','error'); break;
+      case 'stopped': log(data,'log-warn'); setStatus('Stopped by user',''); break;
     }
   });
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────
+let _currentToken = null;
+
+function deleteFile() {
+  if(!_currentToken) return;
+  fetch(`/olevod/delete/${_currentToken}`,{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.ok){ document.getElementById('downloadBanner').style.display='none'; _currentToken=null; }
+  });
+}
+
+function highlight(id) {
+  const el=document.getElementById(id); el.focus(); el.style.borderColor='var(--accent)';
+  setTimeout(()=>el.style.borderColor='',1500);
 }
 </script>
 {% endblock %}

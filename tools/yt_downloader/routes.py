@@ -10,13 +10,20 @@ Endpoints:
   POST /yt/stop          - Kill the running process
   GET  /yt/check_ffmpeg  - Check if ffmpeg is available
 """
-import subprocess, json, shutil, os, re, glob
-from flask import Blueprint, render_template, request, Response, stream_with_context
+import subprocess, json, shutil, os, re, glob, uuid, secrets
+from flask import Blueprint, render_template, request, Response, stream_with_context, send_file, abort
 
 yt_bp = Blueprint('yt', __name__, template_folder='templates')
 
 _current_proc = None
 _user_stopped = False
+
+_HERE     = os.path.dirname(os.path.abspath(__file__))
+SERVE_DIR = os.path.join(_HERE, 'downloads')
+os.makedirs(SERVE_DIR, exist_ok=True)
+
+# token → file_id  (only the holder of the token can download/delete their file)
+_tokens: dict = {}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -32,6 +39,32 @@ def _sse(event, data):
 
 def _expand(path):
     return os.path.expanduser((path or '~/Downloads').strip())
+
+def _safe_name(name: str) -> str:
+    name = re.sub(r'\.[^.]+$', '', name).strip()
+    name = re.sub(r'[\\/:*?"<>|]', '_', name)
+    return name or 'video'
+
+def _list_files(ext=None):
+    files = []
+    for fname in sorted(os.listdir(SERVE_DIR)):
+        fpath = os.path.join(SERVE_DIR, fname)
+        if not os.path.isfile(fpath): continue
+        if ext and not fname.endswith(ext): continue
+        parts = fname.rsplit('.', 1)
+        name_part = parts[0]
+        file_ext  = parts[1] if len(parts) > 1 else ''
+        id_name   = name_part.split('__', 1)
+        file_id      = id_name[0]
+        display_name = id_name[1] if len(id_name) > 1 else name_part
+        files.append({
+            'id':      file_id,
+            'name':    display_name.replace('_', ' '),
+            'ext':     file_ext,
+            'size_mb': round(os.path.getsize(fpath) / 1_048_576, 1),
+            'filename': fname,
+        })
+    return files
 
 def _no_playlist(url: str) -> str:
     import urllib.parse as up
@@ -140,6 +173,41 @@ def check_ffmpeg():
     return json.dumps({'available': _ffmpeg_available()})
 
 
+# ── File serving (token-protected) ────────────────────────────────────────────
+
+@yt_bp.route('/serve/<token>')
+def serve_file(token):
+    file_id = _tokens.get(token)
+    if not file_id:
+        abort(403)
+    for fname in os.listdir(SERVE_DIR):
+        if fname.startswith(file_id + '__'):
+            fpath = os.path.join(SERVE_DIR, fname)
+            parts = fname.rsplit('.', 1)
+            name_part = parts[0].split('__', 1)
+            display = (name_part[1] if len(name_part) > 1 else name_part[0])
+            ext = parts[1] if len(parts) > 1 else 'mp4'
+            mime = 'audio/mpeg' if ext == 'mp3' else 'video/mp4'
+            return send_file(fpath, mimetype=mime, as_attachment=True,
+                             download_name=f'{display}.{ext}')
+    abort(404)
+
+@yt_bp.route('/delete/<token>', methods=['POST'])
+def delete_file(token):
+    file_id = _tokens.get(token)
+    if not file_id:
+        return json.dumps({'ok': False, 'msg': 'Invalid token'})
+    for fname in os.listdir(SERVE_DIR):
+        if fname.startswith(file_id + '__'):
+            try:
+                os.remove(os.path.join(SERVE_DIR, fname))
+                _tokens.pop(token, None)
+                return json.dumps({'ok': True})
+            except Exception as e:
+                return json.dumps({'ok': False, 'msg': str(e)})
+    return json.dumps({'ok': False, 'msg': 'File not found'})
+
+
 # ── Page ───────────────────────────────────────────────────────────────────────
 
 @yt_bp.route('/')
@@ -170,12 +238,61 @@ def download():
     else:
         cmd += ['-f', quality, '--merge-output-format', fmt]
 
-    cmd += ['-o', f'{save_path}/%(title)s.%(ext)s', '--progress', '--no-mtime', '--newline']
+    file_id  = uuid.uuid4().hex[:12]
+    out_tmpl = os.path.join(SERVE_DIR, f'{file_id}__%(title)s.%(ext)s')
+    cmd += ['-o', out_tmpl, '--progress', '--no-mtime', '--newline']
     if android:   cmd += ['--extractor-args', 'youtube:player_client=android']
     if overwrite: cmd += ['--no-continue', '--force-overwrites']
     if subs:      cmd += ['--write-auto-sub', '--embed-subs']
     cmd.append(url)
-    return _stream(_run_cmd(cmd))
+
+    def generate():
+        global _current_proc, _user_stopped
+        _user_stopped = False
+        yield _sse('cmd', ' '.join(cmd))
+        try:
+            _current_proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
+            )
+            for raw in _current_proc.stdout:
+                line = raw.rstrip('\n')
+                if not line: continue
+                if re.search(r'\d+\.\d+%', line):
+                    yield _sse('progress', line)
+                else:
+                    yield _sse('log', line)
+            _current_proc.wait()
+            rc = _current_proc.returncode
+            _current_proc = None
+        except Exception as exc:
+            _current_proc = None
+            yield _sse('error', str(exc))
+            return
+
+        if _user_stopped:
+            yield _sse('stopped', 'Stopped by user.')
+            return
+
+        if rc != 0:
+            yield _sse('error', f'yt-dlp exited with code {rc}')
+            return
+
+        # Find the saved file, generate a token, emit ready + done
+        for fname in sorted(os.listdir(SERVE_DIR)):
+            if fname.startswith(file_id + '__'):
+                fpath   = os.path.join(SERVE_DIR, fname)
+                size_mb = round(os.path.getsize(fpath) / 1_048_576, 1)
+                parts   = fname.rsplit('.', 1)
+                name    = parts[0].split('__', 1)[1] if '__' in parts[0] else parts[0]
+                token   = secrets.token_urlsafe(32)
+                _tokens[token] = file_id
+                yield _sse('ready', json.dumps({'token': token, 'name': name, 'size_mb': size_mb}))
+                break
+
+        yield _sse('done', 'Finished ✓')
+
+    return _stream(generate())
 
 
 # ── 2. MP3 ─────────────────────────────────────────────────────────────────────
@@ -187,27 +304,28 @@ def mp3():
 
     url        = _no_playlist(data['url'].strip())
     quality    = data.get('audio_quality', '0')
-    save_path  = _expand(data.get('save_path', '~/Downloads'))
     overwrite  = data.get('overwrite') == 'true'
     android    = data.get('android', 'true') == 'true'
     thumbnail  = data.get('thumbnail', 'true') == 'true'
     metadata   = data.get('metadata', 'true') == 'true'
     has_ffmpeg = _ffmpeg_available()
+    file_id    = uuid.uuid4().hex[:12]
 
     def generate():
+        global _current_proc, _user_stopped
+        _user_stopped = False
+
         if not has_ffmpeg:
             yield _sse('log', '⚠  ffmpeg not found — audio will be saved as .m4a (best available without conversion).')
             yield _sse('log', '   Install ffmpeg for true .mp3 output: https://ffmpeg.org/download.html')
 
         if has_ffmpeg:
-            # ffmpeg present: download best audio and convert to mp3
             cmd = [
                 _ytdlp(), '--no-playlist',
                 '-f', 'bestaudio/best',
                 '-x', '--audio-format', 'mp3',
                 '--audio-quality', quality,
-                # Force .mp3 extension so the output is always named correctly
-                '-o', f'{save_path}/%(title)s.mp3',
+                '-o', os.path.join(SERVE_DIR, f'{file_id}__%(title)s.mp3'),
                 '--progress', '--no-mtime', '--newline',
             ]
             if android:   cmd += ['--extractor-args', 'youtube:player_client=android']
@@ -215,18 +333,57 @@ def mp3():
             if metadata:  cmd += ['--embed-metadata']
             if overwrite: cmd += ['--no-continue', '--force-overwrites']
         else:
-            # No ffmpeg: download best m4a natively (no conversion needed, stays as .m4a)
             cmd = [
                 _ytdlp(), '--no-playlist',
                 '-f', 'bestaudio[ext=m4a]/bestaudio/best',
-                '-o', f'{save_path}/%(title)s.%(ext)s',
+                '-o', os.path.join(SERVE_DIR, f'{file_id}__%(title)s.%(ext)s'),
                 '--progress', '--no-mtime', '--newline',
             ]
             if android:   cmd += ['--extractor-args', 'youtube:player_client=android']
             if overwrite: cmd += ['--no-continue', '--force-overwrites']
 
         cmd.append(url)
-        yield from _run_cmd(cmd)
+        yield _sse('cmd', ' '.join(cmd))
+
+        try:
+            _current_proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
+            )
+            for raw in _current_proc.stdout:
+                line = raw.rstrip('\n')
+                if not line: continue
+                if re.search(r'\d+\.\d+%', line):
+                    yield _sse('progress', line)
+                else:
+                    yield _sse('log', line)
+            _current_proc.wait()
+            rc = _current_proc.returncode
+            _current_proc = None
+        except Exception as exc:
+            _current_proc = None
+            yield _sse('error', str(exc))
+            return
+
+        if _user_stopped:
+            yield _sse('stopped', 'Stopped by user.')
+            return
+        if rc != 0:
+            yield _sse('error', f'yt-dlp exited with code {rc}')
+            return
+
+        for fname in sorted(os.listdir(SERVE_DIR)):
+            if fname.startswith(file_id + '__'):
+                fpath   = os.path.join(SERVE_DIR, fname)
+                size_mb = round(os.path.getsize(fpath) / 1_048_576, 1)
+                parts   = fname.rsplit('.', 1)
+                name    = parts[0].split('__', 1)[1] if '__' in parts[0] else parts[0]
+                token   = secrets.token_urlsafe(32)
+                _tokens[token] = file_id
+                yield _sse('ready', json.dumps({'token': token, 'name': name, 'size_mb': size_mb}))
+                break
+
+        yield _sse('done', 'Finished ✓')
 
     return _stream(generate())
 

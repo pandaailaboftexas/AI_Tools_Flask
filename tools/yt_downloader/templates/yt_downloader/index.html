@@ -119,7 +119,7 @@
     </div>
     <div class="toggle-row">
       <div class="toggle-info"><strong>Android client</strong><span>Avoids nsig / bot-detection errors</span></div>
-      <div class="toggle on" id="v-android" onclick="this.classList.toggle('on');updateCmd()"></div>
+      <div class="toggle" id="v-android" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
     <div class="toggle-row">
       <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
@@ -165,7 +165,7 @@
     </div>
     <div class="toggle-row">
       <div class="toggle-info"><strong>Android client</strong><span>Avoids nsig / bot-detection errors</span></div>
-      <div class="toggle on" id="mp3-android" onclick="this.classList.toggle('on');updateCmd()"></div>
+      <div class="toggle" id="mp3-android" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
     <div class="toggle-row">
       <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
@@ -310,6 +310,28 @@
   <div class="status-dot" id="statusDot"></div>
   <span id="statusText">Ready — paste a URL and choose a tab</span>
 </div>
+
+<!-- Download banner (shown after video/mp3 finishes) -->
+<div id="downloadBanner" style="display:none;margin-top:14px;padding:16px 18px;
+  background:rgba(61,255,160,0.06);border:1px solid rgba(61,255,160,0.25);
+  border-radius:12px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <div>
+    <div style="font-size:14px;font-weight:700;color:var(--success);margin-bottom:3px;">✓ Ready to download</div>
+    <div style="font-size:12px;color:var(--muted);" id="bannerMeta"></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0;">
+    <a id="bannerLink" href="#" class="btn btn-primary" style="text-decoration:none;" download>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download
+    </a>
+    <button id="bannerDelete" onclick="deleteBannerFile()" class="btn btn-ghost" style="color:var(--muted);">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+      Delete from server
+    </button>
+  </div>
+</div>
+
+
 
 <script>
 // ── Tab switching ──────────────────────────────────────────────────────────
@@ -532,7 +554,7 @@ function parseSSE(raw, tab) {
     }
     case 'done':
       log(''); log(data, 'log-success');
-      setStatus('Done — saved to ' + val('savePath'), 'done'); setProgress(100);
+      setStatus('Done ✓ — use the download button below', 'done'); setProgress(100);
       document.getElementById('dlBtn-' + tab).disabled = false;
       document.getElementById('stopBtn-' + tab).disabled = true;
       document.getElementById('stopBtn-' + tab).classList.remove('active');
@@ -556,7 +578,24 @@ function parseSSE(raw, tab) {
       document.getElementById('stopBtn-' + tab).disabled = true;
       document.getElementById('stopBtn-' + tab).classList.remove('active');
       activeTabRunning = null; break;
+    case 'ready': {
+      const info = JSON.parse(data);
+      _bannerToken = info.token;
+      document.getElementById('bannerLink').href = `/yt/serve/${info.token}`;
+      document.getElementById('bannerMeta').textContent = `${info.name}  ·  ${info.size_mb} MB`;
+      document.getElementById('downloadBanner').style.display = 'flex';
+      break;
+    }
   }
+}
+
+let _bannerToken = null;
+
+function deleteBannerFile() {
+  if (!_bannerToken) return;
+  fetch(`/yt/delete/${_bannerToken}`, { method: 'POST' }).then(r => r.json()).then(d => {
+    if (d.ok) { document.getElementById('downloadBanner').style.display = 'none'; _bannerToken = null; }
+  });
 }
 </script>
 {% endblock %}
