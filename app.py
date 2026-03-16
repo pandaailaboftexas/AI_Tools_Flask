@@ -1,12 +1,14 @@
 import socket
 from flask import Flask, render_template
 from tools.yt_downloader.routes import yt_bp
+from tools.olevod_downloader.routes import olevod_bp
 
 app = Flask(__name__)
 app.secret_key = 'change-me-in-production'
 
 # ── Register tool blueprints ──────────────────────────────────────────────────
 app.register_blueprint(yt_bp, url_prefix='/yt')
+app.register_blueprint(olevod_bp, url_prefix='/olevod')
 
 # ── Tool registry (drives the homepage cards) ────────────────────────────────
 TOOLS = [
@@ -16,6 +18,14 @@ TOOLS = [
         'description': 'Download YouTube videos up to 1080p as MP4, MKV, or audio-only.',
         'icon': 'yt',
         'url': '/yt/',
+        'status': 'stable',
+    },
+    {
+        'id': 'olevod_downloader',
+        'name': 'OleVOD Downloader',
+        'description': 'Download videos from olevod.com — yt-dlp with automatic ffmpeg fallback for embedded streams.',
+        'icon': 'ov',
+        'url': '/olevod/',
         'status': 'stable',
     },
     # Add more tools here — they'll appear as cards on the homepage automatically.

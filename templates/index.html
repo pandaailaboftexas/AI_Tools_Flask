@@ -3,9 +3,15 @@
 {% block nav_extra %}<a href="/yt/" class="active">YT Downloader</a>{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>YT Downloader</h1>
-  <p>Download videos, MP3s, transcripts and comments. Powered by <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">yt-dlp</code></p>
+<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+  <div>
+    <h1>YT Downloader</h1>
+    <p>Download videos, MP3s, transcripts and comments. Powered by <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">yt-dlp</code></p>
+  </div>
+  <a href="/olevod/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    OleVOD Downloader →
+  </a>
 </div>
 
 <!-- URL (shared across all tabs) -->
