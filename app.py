@@ -2,13 +2,15 @@ import socket
 from flask import Flask, render_template
 from tools.yt_downloader.routes import yt_bp
 from tools.olevod_downloader.routes import olevod_bp
+from tools.vimeo_downloader.routes import vimeo_bp
 
 app = Flask(__name__)
 app.secret_key = 'change-me-in-production'
 
 # ── Register tool blueprints ──────────────────────────────────────────────────
-app.register_blueprint(yt_bp, url_prefix='/yt')
+app.register_blueprint(yt_bp,    url_prefix='/yt')
 app.register_blueprint(olevod_bp, url_prefix='/olevod')
+app.register_blueprint(vimeo_bp, url_prefix='/vimeo')
 
 # ── Tool registry (drives the homepage cards) ────────────────────────────────
 TOOLS = [
@@ -18,6 +20,14 @@ TOOLS = [
         'description': 'Download YouTube videos up to 1080p as MP4, MKV, or audio-only.',
         'icon': 'yt',
         'url': '/yt/',
+        'status': 'stable',
+    },
+    {
+        'id': 'vimeo_downloader',
+        'name': 'Vimeo Downloader',
+        'description': 'Download Vimeo videos up to 1080p as MP4, MKV, or audio-only. Supports password-protected videos.',
+        'icon': 'vm',
+        'url': '/vimeo/',
         'status': 'stable',
     },
     {

@@ -1,37 +1,47 @@
 {% extends "base.html" %}
-{% block title %}YT Downloader — Toolbox{% endblock %}
-{% block nav_extra %}<a href="/yt/" class="active">YT Downloader</a>{% endblock %}
+{% block title %}Vimeo Downloader — Toolbox{% endblock %}
+{% block nav_extra %}<a href="/vimeo/" class="active">Vimeo Downloader</a>{% endblock %}
 
 {% block content %}
 <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
   <div>
-    <h1>YT Downloader</h1>
-    <p>Download videos, MP3s, transcripts and comments. Powered by <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">yt-dlp</code></p>
+    <h1>Vimeo Downloader</h1>
+    <p>Download Vimeo videos, MP3s and transcripts. Powered by <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">yt-dlp</code></p>
   </div>
-  <a href="/olevod/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">
+  <a href="/yt/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-    OleVOD Downloader →
+    YT Downloader →
   </a>
 </div>
 
 <!-- URL input -->
 <div class="card">
-  <div class="card-label">Video URL(s)</div>
+  <div class="card-label">Vimeo URL(s)</div>
   <textarea class="input" id="urlInput" rows="3"
-    placeholder="Paste one URL per line, or separate with commas&#10;https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/watch?v=..."
+    placeholder="https://vimeo.com/123456789&#10;Paste one URL per line, or separate with commas"
     autocomplete="off" spellcheck="false" oninput="updateCmd()"
     style="resize:vertical;min-height:70px;font-family:var(--mono);font-size:12px;line-height:1.6;"></textarea>
   <span id="urlCount" style="display:block;margin-top:6px;font-size:12px;color:var(--muted);"></span>
 </div>
 
-<!-- Playlist warning -->
-<div id="playlistWarning" style="display:none;margin-bottom:14px;padding:11px 14px;background:rgba(255,210,61,0.08);border:1px solid rgba(255,210,61,0.3);border-radius:10px;font-size:13px;color:var(--warn);align-items:center;gap:10px;">
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-  <span>Playlist URL detected — only the <strong>single video</strong> will be downloaded (<code style="font-family:var(--mono);font-size:11px;">--no-playlist</code> is always active).</span>
+<!-- Password (optional, for private/password-protected videos) -->
+<div class="card" style="padding-top:16px;padding-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <label style="font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;flex-shrink:0;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Password
+    </label>
+    <input class="input" id="videoPassword" type="password"
+      placeholder="Leave blank for public videos"
+      autocomplete="off" spellcheck="false" style="flex:1;">
+  </div>
+  <div style="margin-top:8px;font-size:11px;color:var(--muted);">
+    Required for password-protected Vimeo videos. Leave blank for public videos.
+  </div>
 </div>
 
 <!-- Save path -->
-<div class="card" style="padding-top:18px;padding-bottom:18px;">
+<div class="card" style="padding-top:16px;padding-bottom:16px;">
   <div style="display:flex;align-items:center;gap:12px;">
     <label style="font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;flex-shrink:0;">Save to</label>
     <input class="input" id="savePath" value="~/Downloads" spellcheck="false" oninput="updateCmd()" style="flex:1;">
@@ -40,21 +50,17 @@
 
 <!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:5px;">
-  <button class="tab-btn active" data-tab="video"      onclick="switchTab('video')">
+  <button class="tab-btn active" data-tab="video" onclick="switchTab('video')">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
     Video
   </button>
-  <button class="tab-btn" data-tab="mp3"        onclick="switchTab('mp3')">
+  <button class="tab-btn" data-tab="mp3" onclick="switchTab('mp3')">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
     MP3
   </button>
   <button class="tab-btn" data-tab="transcript" onclick="switchTab('transcript')">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
     Transcript
-  </button>
-  <button class="tab-btn" data-tab="comments"   onclick="switchTab('comments')">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    Comments
   </button>
 </div>
 
@@ -109,19 +115,19 @@
   <div class="card">
     <div class="card-label">Options</div>
     <div class="toggle-row">
-      <div class="toggle-info"><strong>Embed subtitles</strong><span>Auto-generated captions baked in</span></div>
+      <div class="toggle-info"><strong>Embed subtitles</strong><span>Bake captions into the video file</span></div>
       <div class="toggle" id="v-subs" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
     <div class="toggle-row">
-      <div class="toggle-info"><strong>Android client</strong><span>Avoids nsig / bot-detection errors</span></div>
-      <div class="toggle" id="v-android" onclick="this.classList.toggle('on');updateCmd()"></div>
-    </div>
-    <div class="toggle-row">
-      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file already exists</span></div>
       <div class="toggle" id="v-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
   </div>
-  <div class="cmd-box visible" id="cmd-video"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-video')">Copy</button><span id="cmdtext-video"></span></div>
+  <div class="cmd-box visible" id="cmd-video">
+    <div class="cmd-box-label">Generated command</div>
+    <button class="cmd-copy" onclick="copyCmd('cmd-video')">Copy</button>
+    <span id="cmdtext-video"></span>
+  </div>
   <div style="display:flex;gap:10px;">
     <button class="btn btn-primary" style="flex:1;" id="dlBtn-video" onclick="run('video')">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -155,26 +161,26 @@
       <div class="toggle on" id="mp3-thumb" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
     <div class="toggle-row">
-      <div class="toggle-info"><strong>Embed metadata</strong><span>Title, artist, album tags (requires ffmpeg)</span></div>
+      <div class="toggle-info"><strong>Embed metadata</strong><span>Title, uploader, description tags</span></div>
       <div class="toggle on" id="mp3-meta" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
     <div class="toggle-row">
-      <div class="toggle-info"><strong>Android client</strong><span>Avoids nsig / bot-detection errors</span></div>
-      <div class="toggle" id="mp3-android" onclick="this.classList.toggle('on');updateCmd()"></div>
-    </div>
-    <div class="toggle-row">
-      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file already exists</span></div>
       <div class="toggle" id="mp3-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
   </div>
   <div id="ffmpegNote" style="margin-bottom:14px;padding:10px 14px;background:rgba(255,210,61,0.07);border:1px solid rgba(255,210,61,0.25);border-radius:9px;font-size:12px;color:var(--warn);line-height:1.6;display:none;">
-    ⚠ <strong>ffmpeg not detected</strong> — thumbnail and metadata embedding will be skipped.<br>
+    ⚠ <strong>ffmpeg not detected</strong> — thumbnail/metadata embedding skipped. Audio saved as .m4a.<br>
     Install: <code style="font-family:var(--mono);">brew install ffmpeg</code> (Mac) or <code style="font-family:var(--mono);">sudo apt install ffmpeg</code> (Linux)
   </div>
   <div id="ffmpegOk" style="margin-bottom:14px;padding:10px 14px;background:rgba(61,255,160,0.06);border:1px solid rgba(61,255,160,0.2);border-radius:9px;font-size:12px;color:var(--success);display:none;">
     ✓ ffmpeg detected — thumbnail and metadata embedding enabled.
   </div>
-  <div class="cmd-box visible" id="cmd-mp3"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-mp3')">Copy</button><span id="cmdtext-mp3"></span></div>
+  <div class="cmd-box visible" id="cmd-mp3">
+    <div class="cmd-box-label">Generated command</div>
+    <button class="cmd-copy" onclick="copyCmd('cmd-mp3')">Copy</button>
+    <span id="cmdtext-mp3"></span>
+  </div>
   <div style="display:flex;gap:10px;">
     <button class="btn btn-primary" style="flex:1;" id="dlBtn-mp3" onclick="run('mp3')">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -207,17 +213,9 @@
     </div>
   </div>
   <div class="card">
-    <div class="card-label">Subtitle Sources</div>
+    <div class="card-label">Options</div>
     <div class="toggle-row">
-      <div class="toggle-info"><strong>Auto-generated captions</strong><span>YouTube's ASR-generated subtitles</span></div>
-      <div class="toggle on" id="tr-auto" onclick="this.classList.toggle('on');updateCmd()"></div>
-    </div>
-    <div class="toggle-row">
-      <div class="toggle-info"><strong>Manual subtitles</strong><span>Human-made captions (if available)</span></div>
-      <div class="toggle on" id="tr-manual" onclick="this.classList.toggle('on');updateCmd()"></div>
-    </div>
-    <div class="toggle-row">
-      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file already exists</span></div>
       <div class="toggle" id="tr-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
     <div class="toggle-row">
@@ -228,7 +226,11 @@
       <div class="toggle" id="tr-strip" onclick="this.classList.toggle('on');updateCmd()"></div>
     </div>
   </div>
-  <div class="cmd-box visible" id="cmd-transcript"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-transcript')">Copy</button><span id="cmdtext-transcript"></span></div>
+  <div class="cmd-box visible" id="cmd-transcript">
+    <div class="cmd-box-label">Generated command</div>
+    <button class="cmd-copy" onclick="copyCmd('cmd-transcript')">Copy</button>
+    <span id="cmdtext-transcript"></span>
+  </div>
   <div style="display:flex;gap:10px;">
     <button class="btn btn-primary" style="flex:1;" id="dlBtn-transcript" onclick="run('transcript')">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -241,58 +243,11 @@
   </div>
 </div>
 
-<!-- TAB: COMMENTS -->
-<div class="tab-panel" id="tab-comments">
-  <div class="card">
-    <div class="card-label">Settings</div>
-    <div class="options-grid">
-      <div class="option-group">
-        <label>Max comments to fetch</label>
-        <select id="cm-max" onchange="updateCmd()">
-          <option value="100">100 (fast)</option>
-          <option value="200" selected>200 (default)</option>
-          <option value="500">500</option>
-          <option value="1000">1000 (slow)</option>
-          <option value="all">All (very slow)</option>
-        </select>
-      </div>
-      <div class="option-group">
-        <label>Sort by</label>
-        <select id="cm-sort" onchange="updateCmd()">
-          <option value="top">Top (most liked)</option>
-          <option value="new">Newest first</option>
-        </select>
-      </div>
-    </div>
-    <div style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.6;">
-      💡 Comments are saved as a readable <code style="font-family:var(--mono);">.comments.txt</code> file. Replies are indented. Raw JSON is deleted automatically.
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-label">Options</div>
-    <div class="toggle-row">
-      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-fetch if file exists</span></div>
-      <div class="toggle" id="cm-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
-    </div>
-  </div>
-  <div class="cmd-box visible" id="cmd-comments"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-comments')">Copy</button><span id="cmdtext-comments"></span></div>
-  <div style="display:flex;gap:10px;">
-    <button class="btn btn-primary" style="flex:1;" id="dlBtn-comments" onclick="run('comments')">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      Download Comments
-    </button>
-    <button class="btn btn-stop" id="stopBtn-comments" onclick="stopDownload()" disabled>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-      Stop
-    </button>
-  </div>
-</div>
-
-<!-- Terminal (shared) -->
+<!-- Terminal -->
 <div class="terminal" id="terminal" style="margin-top:14px;">
   <div class="terminal-header">
     <div class="term-dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
-    <div class="term-title" id="termTitle">yt-dlp · live output</div>
+    <div class="term-title" id="termTitle">yt-dlp · vimeo · live output</div>
     <button onclick="document.getElementById('termBody').innerHTML=''"
       style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:11px;">clear</button>
   </div>
@@ -303,10 +258,10 @@
 <!-- Status bar -->
 <div class="status-bar" style="margin-top:14px;">
   <div class="status-dot" id="statusDot"></div>
-  <span id="statusText">Ready — paste a URL and choose a tab</span>
+  <span id="statusText">Ready — paste a Vimeo URL above</span>
 </div>
 
-<!-- ── Ready-to-download banner (bottom of page, shown after finish) ──────── -->
+<!-- Ready-to-download banner (bottom of page) -->
 <div id="downloadBanner" style="display:none;margin-top:20px;padding:18px 20px;
   background:rgba(61,255,160,0.06);border:1px solid rgba(61,255,160,0.25);border-radius:14px;">
   <div style="font-size:14px;font-weight:700;color:var(--success);margin-bottom:10px;">✓ Ready to download</div>
@@ -315,22 +270,24 @@
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-let activeTab       = 'video';
+let activeTab        = 'video';
 let activeTabRunning = null;
-let _currentJobId   = null;
-let _batchTokens    = [];   // [{token, name, size_mb}]
+let _currentJobId    = null;
+let _batchTokens     = [];
 
 // ── Tab switching ──────────────────────────────────────────────────────────
 function switchTab(name) {
   activeTab = name;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p =>
+    p.classList.toggle('active', p.id === 'tab-' + name));
   updateCmd();
   if (name === 'mp3') checkFfmpeg();
 }
 
 function checkFfmpeg() {
-  fetch('/yt/check_ffmpeg').then(r => r.json()).then(d => {
+  fetch('/vimeo/check_ffmpeg').then(r => r.json()).then(d => {
     document.getElementById('ffmpegNote').style.display = d.available ? 'none' : 'block';
     document.getElementById('ffmpegOk').style.display   = d.available ? 'block' : 'none';
   }).catch(() => {});
@@ -349,7 +306,7 @@ function updateUrlCount() {
   document.getElementById('urlCount').textContent = n > 1 ? `${n} URLs queued` : '';
 }
 
-// ── Command builders (for the "generated command" preview boxes) ───────────
+// ── Command builders (preview only) ───────────────────────────────────────
 function buildVideo() {
   const urls = getURLs(), url = urls[0] || '<URL>';
   const q = val('v-quality'), fmt = val('v-format'), p = val('savePath') || '~/Downloads';
@@ -358,9 +315,10 @@ function buildVideo() {
   if (isAudio) c.push('-x', '--audio-format', 'mp3');
   else         c.push('--merge-output-format', fmt);
   c.push('-o', `'${p}/%(title)s.%(ext)s'`, '--progress', '--no-mtime', '--newline');
-  if (on('v-android'))   c.push('--extractor-args', "'youtube:player_client=android'");
   if (on('v-overwrite')) c.push('--no-continue', '--force-overwrites');
   if (on('v-subs'))      c.push('--write-auto-sub', '--embed-subs');
+  const pw = val('videoPassword');
+  if (pw) c.push('--video-password', `'${pw}'`);
   c.push(`'${url}'`);
   if (urls.length > 1) c.push(`  # + ${urls.length - 1} more URL(s)`);
   return c.join(' ');
@@ -372,10 +330,11 @@ function buildMp3() {
   let c = ['yt-dlp', '-f', 'bestaudio/best', '-x', '--audio-format', 'mp3',
            '--audio-quality', q, '-o', `'${p}/%(title)s.%(ext)s'`,
            '--progress', '--no-mtime', '--newline'];
-  if (on('mp3-android'))   c.push('--extractor-args', "'youtube:player_client=android'");
   if (on('mp3-thumb'))     c.push('--embed-thumbnail', '--convert-thumbnails', 'jpg');
-  if (on('mp3-meta'))      c.push('--embed-metadata', '--add-metadata');
+  if (on('mp3-meta'))      c.push('--embed-metadata');
   if (on('mp3-overwrite')) c.push('--no-continue', '--force-overwrites');
+  const pw = val('videoPassword');
+  if (pw) c.push('--video-password', `'${pw}'`);
   c.push(`'${url}'`);
   if (urls.length > 1) c.push(`  # + ${urls.length - 1} more URL(s)`);
   return c.join(' ');
@@ -384,41 +343,25 @@ function buildMp3() {
 function buildTranscript() {
   const urls = getURLs(), url = urls[0] || '<URL>';
   const lang = val('tr-lang') || 'en', fmt = val('tr-format'), p = val('savePath') || '~/Downloads';
-  let c = ['yt-dlp', '--no-playlist', '--skip-download',
-           '-o', `'${p}/%(title)s.%(ext)s'`, '--newline'];
-  if (on('tr-manual')) c.push('--write-sub');
-  if (on('tr-auto'))   c.push('--write-auto-sub');
-  c.push('--sub-langs', lang, '--sub-format', `${fmt}/best`);
+  let c = ['yt-dlp', '--skip-download',
+           '-o', `'${p}/%(title)s.%(ext)s'`, '--newline',
+           '--write-sub', '--write-auto-sub',
+           '--sub-langs', lang, '--sub-format', `${fmt}/best`];
   if (on('tr-overwrite')) c.push('--force-overwrites');
   if (on('tr-strip'))     c.push('# + strip timestamps → .txt');
+  const pw = val('videoPassword');
+  if (pw) c.push('--video-password', `'${pw}'`);
   c.push(`'${url}'`);
   if (urls.length > 1) c.push(`  # + ${urls.length - 1} more URL(s)`);
   return c.join(' ');
 }
 
-function buildComments() {
-  const urls = getURLs(), url = urls[0] || '<URL>';
-  const max = val('cm-max'), sort = val('cm-sort') || 'top', p = val('savePath') || '~/Downloads';
-  let c = ['yt-dlp', '--no-playlist', '--skip-download',
-           '--write-info-json', '--write-comments',
-           '-o', `'${p}/%(title)s.%(ext)s'`, '--newline'];
-  if (max !== 'all') c.push('--extractor-args', `'youtube:max_comments=${max},comment_sort=${sort}'`);
-  if (on('cm-overwrite')) c.push('--force-overwrites');
-  c.push(`'${url}'`, '# → saves as .comments.txt');
-  if (urls.length > 1) c.push(`  # + ${urls.length - 1} more URL(s)`);
-  return c.join(' ');
-}
-
-const builders = { video: buildVideo, mp3: buildMp3, transcript: buildTranscript, comments: buildComments };
+const builders = { video: buildVideo, mp3: buildMp3, transcript: buildTranscript };
 
 function updateCmd() {
   updateUrlCount();
   const fn = builders[activeTab];
   if (fn) document.getElementById('cmdtext-' + activeTab).textContent = fn();
-  const url = getURLs()[0] || '';
-  const warn = document.getElementById('playlistWarning');
-  const isPlaylist = url && (url.includes('list=') || url.includes('/playlist'));
-  warn.style.display = isPlaylist ? 'flex' : 'none';
 }
 updateCmd();
 
@@ -432,7 +375,7 @@ function copyCmd(boxId) {
   });
 }
 
-// ── Terminal helpers ───────────────────────────────────────────────────────
+// ── Terminal ───────────────────────────────────────────────────────────────
 function log(text, cls = '') {
   const body = document.getElementById('termBody');
   const old = body.querySelector('.cursor'); if (old) old.remove();
@@ -454,10 +397,19 @@ function setProgress(pct) {
   document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
 }
 
+// ── Finish helper ──────────────────────────────────────────────────────────
+function _finishTab(tab) {
+  if (!tab) return;
+  document.getElementById('dlBtn-'  + tab).disabled = false;
+  document.getElementById('stopBtn-'+ tab).disabled = true;
+  document.getElementById('stopBtn-'+ tab).classList.remove('active');
+  activeTabRunning = null;
+}
+
 // ── Stop ───────────────────────────────────────────────────────────────────
 function stopDownload() {
   if (!_currentJobId) return;
-  fetch('/yt/stop/' + _currentJobId, { method: 'POST' })
+  fetch('/vimeo/stop/' + _currentJobId, { method: 'POST' })
     .then(r => r.json())
     .then(d => {
       log('⏹ ' + d.msg, 'log-warn');
@@ -467,26 +419,16 @@ function stopDownload() {
     });
 }
 
-function _finishTab(tab) {
-  if (!tab) return;
-  document.getElementById('dlBtn-'  + tab).disabled = false;
-  document.getElementById('stopBtn-'+ tab).disabled = true;
-  document.getElementById('stopBtn-'+ tab).classList.remove('active');
-  activeTabRunning = null;
-}
-
 // ── Run ────────────────────────────────────────────────────────────────────
 const endpoints = {
-  video:      '/yt/download',
-  mp3:        '/yt/mp3',
-  transcript: '/yt/transcript',
-  comments:   '/yt/comments',
+  video:      '/vimeo/download',
+  mp3:        '/vimeo/mp3',
+  transcript: '/vimeo/transcript',
 };
 const tabLabels = {
   video:      'Downloading video…',
   mp3:        'Converting to MP3…',
   transcript: 'Fetching transcript…',
-  comments:   'Fetching comments…',
 };
 
 function run(tab) {
@@ -498,56 +440,45 @@ function run(tab) {
     return;
   }
 
-  // Reset terminal and banner for new run
   document.getElementById('terminal').classList.add('visible');
   document.getElementById('termBody').innerHTML = '';
   document.getElementById('downloadBanner').style.display = 'none';
   document.getElementById('bannerLinks').innerHTML = '';
   _batchTokens = [];
 
-  document.getElementById('dlBtn-'  + tab).disabled = false; // keep enabled during run so user can see it
   document.getElementById('dlBtn-'  + tab).disabled = true;
   document.getElementById('stopBtn-'+ tab).disabled = false;
   document.getElementById('stopBtn-'+ tab).classList.add('active');
   activeTabRunning = tab;
 
   const batchLabel = urls.length > 1 ? ` (batch ×${urls.length})` : '';
-  document.getElementById('termTitle').textContent = `yt-dlp · ${tab}${batchLabel}`;
+  document.getElementById('termTitle').textContent = `yt-dlp · vimeo · ${tab}${batchLabel}`;
   setStatus(tabLabels[tab] || 'Working…', 'active');
   setProgress(0);
 
-  const save_path = val('savePath');
   const urlStr    = urls.join('\n');
+  const save_path = val('savePath');
+  const password  = val('videoPassword');
 
   const payloads = {
     video: {
-      url: urlStr, save_path,
+      url: urlStr, save_path, password,
       quality:   val('v-quality'), format: val('v-format'),
       subs:      on('v-subs')      ? 'true' : 'false',
-      android:   on('v-android')   ? 'true' : 'false',
       overwrite: on('v-overwrite') ? 'true' : 'false',
     },
     mp3: {
-      url: urlStr, save_path,
+      url: urlStr, save_path, password,
       audio_quality: val('mp3-quality'),
       thumbnail:  on('mp3-thumb')     ? 'true' : 'false',
       metadata:   on('mp3-meta')      ? 'true' : 'false',
-      android:    on('mp3-android')   ? 'true' : 'false',
       overwrite:  on('mp3-overwrite') ? 'true' : 'false',
     },
     transcript: {
-      url: urlStr, save_path,
+      url: urlStr, save_path, password,
       lang: val('tr-lang'), sub_format: val('tr-format'),
-      auto_subs:        on('tr-auto')      ? 'true' : 'false',
-      manual_subs:      on('tr-manual')    ? 'true' : 'false',
       overwrite:        on('tr-overwrite') ? 'true' : 'false',
       strip_timestamps: on('tr-strip')     ? 'true' : 'false',
-    },
-    comments: {
-      url: urlStr, save_path,
-      max_comments: val('cm-max'),
-      sort_by:      val('cm-sort'),
-      overwrite:    on('cm-overwrite') ? 'true' : 'false',
     },
   };
 
@@ -656,7 +587,7 @@ function _renderBanner() {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:8px;align-items:center;';
     row.innerHTML = `
-      <a href="/yt/serve/${item.token}" class="btn btn-primary"
+      <a href="/vimeo/serve/${item.token}" class="btn btn-primary"
          style="text-decoration:none;font-size:13px;" download>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -675,13 +606,12 @@ function _renderBanner() {
       </button>`;
     links.appendChild(row);
   });
-  // Scroll banner into view smoothly so user notices it
   banner.style.display = 'block';
   setTimeout(() => banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
 }
 
 function deleteBannerFile(token, rowEl) {
-  fetch(`/yt/delete/${token}`, { method: 'POST' }).then(r => r.json()).then(d => {
+  fetch(`/vimeo/delete/${token}`, { method: 'POST' }).then(r => r.json()).then(d => {
     if (d.ok) {
       _batchTokens = _batchTokens.filter(t => t.token !== token);
       rowEl?.remove();
