@@ -505,6 +505,10 @@ function run(tab) {
   document.getElementById('bannerLinks').innerHTML = '';
   _batchTokens = [];
 
+  // Add all URLs to history
+  urls.forEach(u => historyAdd(u, 'yt'));
+  setTimeout(() => renderHistory('historyPanel'), 100);
+
   document.getElementById('dlBtn-'  + tab).disabled = false; // keep enabled during run so user can see it
   document.getElementById('dlBtn-'  + tab).disabled = true;
   document.getElementById('stopBtn-'+ tab).disabled = false;
@@ -690,5 +694,7 @@ function deleteBannerFile(token, rowEl) {
     }
   });
 }
+// Load history on page load
+window.addEventListener('DOMContentLoaded', () => renderHistory('historyPanel'));
 </script>
 {% endblock %}

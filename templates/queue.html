@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Queue — Toolbox{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Server Status</h1>
+  <p>Live view of active downloads across all tools.</p>
+</div>
+
+<!-- Live stats -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;">
+  <div class="stat-card">
+    <div class="stat-value" id="statActive">—</div>
+    <div class="stat-label">Active Downloads</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="statJobs">—</div>
+    <div class="stat-label">Running Processes</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="statSlot">—</div>
+    <div class="stat-label">Capacity</div>
+  </div>
+</div>
+
+<!-- Tool links -->
+<div class="card">
+  <div class="card-label">Jump to tool</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;">
+    {% for tool in tools %}
+    <a href="{{ tool.url }}" class="btn btn-ghost" style="text-decoration:none;font-size:13px;">
+      {{ tool.name }} →
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Activity log -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <div class="card-label" style="margin-bottom:0;">Live activity</div>
+    <span style="font-size:11px;font-family:var(--mono);color:var(--muted);" id="lastUpdated">—</span>
+  </div>
+  <div id="activityLog" style="font-family:var(--mono);font-size:12px;color:var(--muted);line-height:2;">
+    Waiting for activity…
+  </div>
+</div>
+
+<style>
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px; text-align: center;
+}
+.stat-value { font-size: 32px; font-weight: 800; color: var(--accent); font-family: var(--mono); }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+</style>
+
+<script>
+const MAX_LOG = 40;
+const log_entries = [];
+
+function addLog(msg) {
+  const now = new Date().toLocaleTimeString();
+  log_entries.unshift(`[${now}]  ${msg}`);
+  if (log_entries.length > MAX_LOG) log_entries.pop();
+  document.getElementById('activityLog').textContent = log_entries.join('\n') || 'No activity yet.';
+}
+
+let prevActive = null;
+
+function poll() {
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(d => {
+      const active = d.active_downloads || 0;
+      const jobs   = d.active_jobs || 0;
+      document.getElementById('statActive').textContent  = active;
+      document.getElementById('statJobs').textContent    = jobs;
+      document.getElementById('statSlot').textContent    = `${active} / 8`;
+      document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+      if (prevActive !== null && active !== prevActive) {
+        if (active > prevActive) addLog(`↑ Downloads increased to ${active}`);
+        else                     addLog(`↓ Downloads decreased to ${active}`);
+      }
+      prevActive = active;
+    })
+    .catch(() => {
+      document.getElementById('statActive').textContent = 'err';
+    })
+    .finally(() => setTimeout(poll, 3000));
+}
+poll();
+</script>
+{% endblock %}

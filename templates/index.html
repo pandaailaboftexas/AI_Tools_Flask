@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Toolbox — Home{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div style="text-align:center;padding:48px 0 40px;">
+  <div style="display:inline-flex;align-items:center;justify-content:center;
+    width:72px;height:72px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border-radius:20px;margin-bottom:22px;
+    box-shadow:0 8px 32px rgba(230,57,70,0.35);">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+  </div>
+  <h1 style="font-size:36px;font-weight:800;letter-spacing:-.8px;margin-bottom:12px;line-height:1.1;">
+    Download Toolbox
+  </h1>
+  <p style="font-size:15px;color:var(--muted);max-width:440px;margin:0 auto;line-height:1.7;">
+    A fast, multi-user video downloader.
+    Powered by <code style="font-family:var(--mono);font-size:13px;background:var(--surface2);padding:2px 8px;border-radius:5px;">yt-dlp</code>.
+    Files go to <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:2px 8px;border-radius:5px;">~/Downloads</code>.
+  </p>
+</div>
+
+<!-- Tool cards -->
+<div class="tool-grid">
+{% for tool in tools %}
+<a href="{{ tool.url }}" class="tool-card" style="--c:{{ tool.color }};">
+  <div class="tc-top">
+    <div class="tc-icon">{{ tool.icon }}</div>
+    <span class="tc-site">{{ tool.sites }}</span>
+  </div>
+  <div class="tc-name">{{ tool.name }}</div>
+  <div class="tc-desc">{{ tool.description }}</div>
+  <div class="tc-cta">
+    Open
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+  </div>
+</a>
+{% endfor %}
+</div>
+
+<!-- Feature strip -->
+<div class="feature-strip">
+  <div class="feature-item">
+    <div class="feature-icon">🔄</div>
+    <div class="feature-text"><strong>7× retry</strong><br>Random delay, anti-bot</div>
+  </div>
+  <div class="feature-item">
+    <div class="feature-icon">👥</div>
+    <div class="feature-text"><strong>Multi-user</strong><br>Up to 8 concurrent</div>
+  </div>
+  <div class="feature-item">
+    <div class="feature-icon">📋</div>
+    <div class="feature-text"><strong>Batch URLs</strong><br>Paste many at once</div>
+  </div>
+  <div class="feature-item">
+    <div class="feature-icon">🕐</div>
+    <div class="feature-text"><strong>Auto cleanup</strong><br>Files expire in 2 h</div>
+  </div>
+  <div class="feature-item">
+    <div class="feature-icon">🌗</div>
+    <div class="feature-text"><strong>Dark / Light</strong><br>Your preference saved</div>
+  </div>
+  <div class="feature-item">
+    <div class="feature-icon">📱</div>
+    <div class="feature-text"><strong>Mobile ready</strong><br>Works on any device</div>
+  </div>
+</div>
+
+<style>
+/* ── Tool grid ── */
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 20px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Colour bar on top */
+.tool-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--c, var(--accent));
+}
+
+.tool-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--c, var(--accent));
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+
+.tc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px; height: 46px;
+  border-radius: 13px;
+  background: var(--c, var(--accent));
+  color: #fff;
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .5px;
+  flex-shrink: 0;
+}
+
+.tc-site {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--surface2);
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+.tc-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.3px;
+}
+
+.tc-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  flex: 1;
+}
+
+.tc-cta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c, var(--accent));
+  margin-top: 4px;
+  transition: gap .15s;
+}
+
+.tool-card:hover .tc-cta { gap: 8px; }
+
+/* ── Feature strip ── */
+.feature-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--surface);
+}
+
+.feature-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.feature-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.feature-text strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 1px;
+}
+
+/* Mobile */
+@media(max-width: 520px) {
+  .tool-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tool-card  { padding: 16px 14px 14px; }
+  .tc-name    { font-size: 16px; }
+  .tc-desc    { font-size: 12px; }
+  .feature-strip { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width: 380px) {
+  .tool-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}

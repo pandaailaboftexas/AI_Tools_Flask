@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+{% block title %}Universal Downloader — Toolbox{% endblock %}
+{% block nav_extra %}<a href="/uni/" class="active">Universal</a>{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+  <div>
+    <h1>Universal Downloader</h1>
+    <p>Supports 1000+ sites: Twitter/X, Instagram, TikTok, SoundCloud, Twitch, Reddit, Facebook, Dailymotion, and many more. Powered by <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);padding:1px 6px;border-radius:4px;">yt-dlp</code></p>
+  </div>
+  <a href="/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">← Home</a>
+</div>
+
+<!-- URL input -->
+<div class="card">
+  <div class="card-label">URL(s) — any supported site</div>
+  <textarea class="input" id="urlInput" rows="3"
+    placeholder="Paste one URL per line, or separate with commas&#10;https://twitter.com/...&#10;https://www.instagram.com/..."
+    autocomplete="off" spellcheck="false" oninput="updateCmd()"
+    style="resize:vertical;min-height:70px;font-family:var(--mono);font-size:12px;line-height:1.6;"></textarea>
+  <span id="urlCount" style="display:block;margin-top:6px;font-size:12px;color:var(--muted);"></span>
+</div>
+
+<!-- Save path -->
+<div class="card" style="padding-top:16px;padding-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <label style="font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;flex-shrink:0;">Save to</label>
+    <input class="input" id="savePath" value="~/Downloads" spellcheck="false" oninput="updateCmd()" style="flex:1;">
+  </div>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:5px;">
+  <button class="tab-btn active" data-tab="video" onclick="switchTab('video')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    Video
+  </button>
+  <button class="tab-btn" data-tab="mp3" onclick="switchTab('mp3')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    Audio / MP3
+  </button>
+</div>
+
+<style>
+.tab-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 8px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{background:var(--surface2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+.btn-stop{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:11px 18px;border-radius:9px;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:7px;white-space:nowrap;flex-shrink:0;}
+.btn-stop:hover:not(:disabled){color:var(--accent);border-color:var(--accent);}
+.btn-stop:disabled{opacity:.3;cursor:not-allowed;}
+.btn-stop.active{color:var(--accent);border-color:var(--accent);opacity:1;}
+</style>
+
+<!-- TAB: VIDEO -->
+<div class="tab-panel active" id="tab-video">
+  <div class="card">
+    <div class="card-label">Settings</div>
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Quality</label>
+        <select id="v-quality" onchange="updateCmd()">
+          <option value="bestvideo[height<=1080]+bestaudio/best[height<=1080]/best">1080p (default)</option>
+          <option value="bestvideo[height<=720]+bestaudio/best[height<=720]/best">720p</option>
+          <option value="bestvideo[height<=480]+bestaudio/best[height<=480]/best">480p</option>
+          <option value="bestvideo[height<=360]+bestaudio/best[height<=360]/best">360p</option>
+          <option value="bestaudio/best">Audio only</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Container</label>
+        <select id="v-format" onchange="updateCmd()">
+          <option value="mp4">MP4</option>
+          <option value="mkv">MKV</option>
+          <option value="webm">WebM</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Options</div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Embed subtitles</strong><span>Auto-generated captions baked in</span></div>
+      <div class="toggle" id="v-subs" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle" id="v-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+  </div>
+  <div class="cmd-box visible" id="cmd-video"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-video')">Copy</button><span id="cmdtext-video"></span></div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-primary" style="flex:1;" id="dlBtn-video" onclick="run('video')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Video
+    </button>
+    <button class="btn btn-stop" id="stopBtn-video" onclick="stopDownload()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Stop
+    </button>
+  </div>
+</div>
+
+<!-- TAB: MP3 -->
+<div class="tab-panel" id="tab-mp3">
+  <div class="card">
+    <div class="card-label">Audio Quality</div>
+    <div class="option-group">
+      <label>VBR quality (0 = best ~320kbps, 9 = smallest)</label>
+      <select id="mp3-quality" onchange="updateCmd()">
+        <option value="0">0 — Best (~320kbps VBR)</option>
+        <option value="2">2 — High (~190kbps VBR)</option>
+        <option value="5">5 — Medium (~130kbps VBR)</option>
+        <option value="9">9 — Small (~65kbps VBR)</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Options</div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Embed thumbnail</strong><span>Adds cover art (requires ffmpeg)</span></div>
+      <div class="toggle on" id="mp3-thumb" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Embed metadata</strong><span>Title, uploader tags</span></div>
+      <div class="toggle on" id="mp3-meta" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-info"><strong>Overwrite existing</strong><span>Force re-download if file exists</span></div>
+      <div class="toggle" id="mp3-overwrite" onclick="this.classList.toggle('on');updateCmd()"></div>
+    </div>
+  </div>
+  <div id="ffmpegNote" style="margin-bottom:14px;padding:10px 14px;background:rgba(255,210,61,.07);border:1px solid rgba(255,210,61,.25);border-radius:9px;font-size:12px;color:var(--warn);line-height:1.6;display:none;">
+    ⚠ <strong>ffmpeg not detected</strong> — thumbnail/metadata skipped. Audio saved as .m4a.<br>
+    Install: <code style="font-family:var(--mono);">brew install ffmpeg</code> (Mac) · <code style="font-family:var(--mono);">sudo apt install ffmpeg</code> (Linux)
+  </div>
+  <div id="ffmpegOk" style="margin-bottom:14px;padding:10px 14px;background:rgba(61,255,160,.06);border:1px solid rgba(61,255,160,.2);border-radius:9px;font-size:12px;color:var(--success);display:none;">
+    ✓ ffmpeg detected — thumbnail and metadata enabled.
+  </div>
+  <div class="cmd-box visible" id="cmd-mp3"><div class="cmd-box-label">Generated command</div><button class="cmd-copy" onclick="copyCmd('cmd-mp3')">Copy</button><span id="cmdtext-mp3"></span></div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-primary" style="flex:1;" id="dlBtn-mp3" onclick="run('mp3')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Download Audio / MP3
+    </button>
+    <button class="btn btn-stop" id="stopBtn-mp3" onclick="stopDownload()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Stop
+    </button>
+  </div>
+</div>
+
+<!-- Terminal -->
+<div class="terminal" id="terminal" style="margin-top:14px;">
+  <div class="terminal-header">
+    <div class="term-dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+    <div class="term-title" id="termTitle">yt-dlp · universal · live output</div>
+    <button onclick="document.getElementById('termBody').innerHTML=''"
+      style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:11px;">clear</button>
+  </div>
+  <div class="progress-wrap visible"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="terminal-body" id="termBody"></div>
+</div>
+
+<div class="status-bar" style="margin-top:14px;">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">Ready — paste a URL above</span>
+</div>
+
+<!-- Ready-to-download banner (bottom of page) -->
+<div id="downloadBanner" style="display:none;margin-top:20px;padding:18px 20px;
+  background:rgba(61,255,160,.06);border:1px solid rgba(61,255,160,.25);border-radius:14px;">
+  <div style="font-size:14px;font-weight:700;color:var(--success);margin-bottom:10px;">✓ Ready to download</div>
+  <div id="bannerLinks" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<!-- History panel -->
+<div class="history-panel" id="historyPanel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <h3 style="margin:0;">Recent URLs</h3>
+    <button class="history-clear-btn" onclick="historyClear()">Clear</button>
+  </div>
+  <div class="history-list"></div>
+</div>
+
+<script>
+const TOOL = 'universal';
+let activeTab = 'video', activeTabRunning = null, _currentJobId = null, _batchTokens = [];
+const on  = id => document.getElementById(id)?.classList.contains('on');
+const val = id => document.getElementById(id)?.value || '';
+
+function switchTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  updateCmd();
+  if (name === 'mp3') checkFfmpeg();
+}
+
+function checkFfmpeg() {
+  fetch('/uni/check_ffmpeg').then(r=>r.json()).then(d=>{
+    document.getElementById('ffmpegNote').style.display = d.available ? 'none' : 'block';
+    document.getElementById('ffmpegOk').style.display   = d.available ? 'block' : 'none';
+  }).catch(()=>{});
+}
+
+function getURLs() { return val('urlInput').split(/[\n,]+/).map(s=>s.trim()).filter(Boolean); }
+
+function updateUrlCount() {
+  const n = getURLs().length;
+  document.getElementById('urlCount').textContent = n > 1 ? `${n} URLs queued` : '';
+}
+
+function buildVideo() {
+  const urls=getURLs(), url=urls[0]||'<URL>';
+  const q=val('v-quality'), fmt=val('v-format'), p=val('savePath')||'~/Downloads';
+  const isAudio=q.startsWith('bestaudio');
+  let c=['yt-dlp','-f',`'${q}'`];
+  if(isAudio) c.push('-x','--audio-format','mp3');
+  else c.push('--merge-output-format',fmt);
+  c.push('-o',`'${p}/%(title)s.%(ext)s'`,'--progress','--no-mtime','--newline');
+  if(on('v-overwrite')) c.push('--no-continue','--force-overwrites');
+  if(on('v-subs'))      c.push('--write-auto-sub','--embed-subs');
+  c.push(`'${url}'`);
+  if(urls.length>1) c.push(`  # + ${urls.length-1} more`);
+  return c.join(' ');
+}
+
+function buildMp3() {
+  const urls=getURLs(), url=urls[0]||'<URL>';
+  const q=val('mp3-quality'), p=val('savePath')||'~/Downloads';
+  let c=['yt-dlp','-f','bestaudio/best','-x','--audio-format','mp3','--audio-quality',q,
+         '-o',`'${p}/%(title)s.%(ext)s'`,'--progress','--no-mtime','--newline'];
+  if(on('mp3-thumb'))     c.push('--embed-thumbnail','--convert-thumbnails','jpg');
+  if(on('mp3-meta'))      c.push('--embed-metadata');
+  if(on('mp3-overwrite')) c.push('--no-continue','--force-overwrites');
+  c.push(`'${url}'`);
+  if(urls.length>1) c.push(`  # + ${urls.length-1} more`);
+  return c.join(' ');
+}
+
+const builders = {video:buildVideo, mp3:buildMp3};
+
+function updateCmd() {
+  updateUrlCount();
+  const fn=builders[activeTab];
+  if(fn) document.getElementById('cmdtext-'+activeTab).textContent=fn();
+}
+updateCmd();
+
+function copyCmd(boxId) {
+  const t=document.getElementById(boxId).querySelector('span').textContent;
+  navigator.clipboard.writeText(t).then(()=>{
+    const b=document.querySelector(`#${boxId} .cmd-copy`);
+    b.textContent='Copied!';b.style.color='var(--success)';
+    setTimeout(()=>{b.textContent='Copy';b.style.color='';},1600);
+  });
+}
+
+function log(text, cls='') {
+  const body=document.getElementById('termBody');
+  const old=body.querySelector('.cursor');if(old)old.remove();
+  const line=document.createElement('span');line.className='log-line '+cls;line.textContent=text;
+  body.appendChild(line);body.appendChild(document.createTextNode('\n'));
+  const cur=document.createElement('span');cur.className='cursor';body.appendChild(cur);
+  body.scrollTop=body.scrollHeight;
+}
+function setStatus(text,state){
+  document.getElementById('statusText').textContent=text;
+  document.getElementById('statusDot').className='status-dot '+(state||'');
+}
+function setProgress(pct){document.getElementById('progressFill').style.width=Math.min(pct,100)+'%';}
+function _finishTab(tab){
+  if(!tab)return;
+  document.getElementById('dlBtn-'+tab).disabled=false;
+  document.getElementById('stopBtn-'+tab).disabled=true;
+  document.getElementById('stopBtn-'+tab).classList.remove('active');
+  activeTabRunning=null;
+}
+
+function stopDownload(){
+  if(!_currentJobId)return;
+  fetch('/uni/stop/'+_currentJobId,{method:'POST'}).then(r=>r.json()).then(d=>{
+    log('⏹ '+d.msg,'log-warn');setStatus('Stopped','');_finishTab(activeTabRunning);_currentJobId=null;
+  });
+}
+
+const endpoints={video:'/uni/download',mp3:'/uni/mp3'};
+const tabLabels={video:'Downloading video…',mp3:'Converting to MP3…'};
+
+function run(tab){
+  const urls=getURLs();
+  if(!urls.length){
+    const ta=document.getElementById('urlInput');ta.focus();
+    ta.style.borderColor='var(--accent)';setTimeout(()=>ta.style.borderColor='',1500);return;
+  }
+  document.getElementById('terminal').classList.add('visible');
+  document.getElementById('termBody').innerHTML='';
+  document.getElementById('downloadBanner').style.display='none';
+  document.getElementById('bannerLinks').innerHTML='';
+  _batchTokens=[];
+  document.getElementById('dlBtn-'+tab).disabled=true;
+  document.getElementById('stopBtn-'+tab).disabled=false;
+  document.getElementById('stopBtn-'+tab).classList.add('active');
+  activeTabRunning=tab;
+  document.getElementById('termTitle').textContent=`yt-dlp · universal · ${tab}${urls.length>1?' (batch ×'+urls.length+')':''}`;
+  setStatus(tabLabels[tab]||'Working…','active');setProgress(0);
+
+  // Add to history
+  urls.forEach(u => historyAdd(u, TOOL));
+  setTimeout(() => renderHistory('historyPanel'), 100);
+
+  const payloads={
+    video:{url:urls.join('\n'),save_path:val('savePath'),quality:val('v-quality'),format:val('v-format'),
+           subs:on('v-subs')?'true':'false',overwrite:on('v-overwrite')?'true':'false'},
+    mp3:{url:urls.join('\n'),save_path:val('savePath'),audio_quality:val('mp3-quality'),
+         thumbnail:on('mp3-thumb')?'true':'false',metadata:on('mp3-meta')?'true':'false',
+         overwrite:on('mp3-overwrite')?'true':'false'},
+  };
+
+  fetch(endpoints[tab],{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payloads[tab])}).then(res=>{
+    const reader=res.body.getReader(),dec=new TextDecoder();let buf='';
+    function read(){reader.read().then(({done,value})=>{
+      if(done){_finishTab(tab);return;}
+      buf+=dec.decode(value,{stream:true});
+      const parts=buf.split('\n\n');buf=parts.pop();
+      parts.forEach(raw=>parseSSE(raw,tab));read();
+    });}
+    read();
+  }).catch(err=>{log('Connection error: '+err,'log-error');setStatus('Error','error');_finishTab(tab);});
+}
+
+function parseSSE(raw,tab){
+  if(!raw.trim())return;
+  let event='log',data='';
+  raw.split('\n').forEach(line=>{
+    if(line.startsWith('event: '))event=line.slice(7).trim();
+    if(line.startsWith('data: ')){try{data=JSON.parse(line.slice(6)).text;}catch{data=line.slice(6);}}
+  });
+  if(!data)return;
+  switch(event){
+    case 'cmd': log('$ '+data,'log-cmd');log('');setStatus(tabLabels[tab]||'Working…','active');break;
+    case 'log': log(data,data.startsWith('[')?'log-dim':'log-info');break;
+    case 'progress':{log(data,'log-progress');const m=data.match(/(\d+(?:\.\d+)?)%/);
+      if(m)setProgress(parseFloat(m[1]));setStatus((tabLabels[tab]||'')+(m?' '+m[1]+'%':''),'active');break;}
+    case 'done': log('');log(data,'log-success');setStatus('Done ✓','done');setProgress(100);
+      _finishTab(tab);_currentJobId=null;break;
+    case 'batch_error': log('❌  Failed: '+data,'log-error');break;
+    case 'batch_failed': log('');log('⚠  '+data,'log-error');
+      alert('Some downloads failed (logged to ~/Downloads/yt_errors.log):\n\n'+data);break;
+    case 'error': log(data,'log-error');setStatus('Error — see terminal','error');
+      _finishTab(tab);_currentJobId=null;break;
+    case 'stopped': log(data,'log-warn');setStatus('Stopped','');_finishTab(tab);_currentJobId=null;break;
+    case 'ready':{const info=JSON.parse(data);if(info.job_id)_currentJobId=info.job_id;
+      _batchTokens.push(info);_renderBanner();break;}
+  }
+}
+
+function _renderBanner(){
+  const banner=document.getElementById('downloadBanner');
+  const links=document.getElementById('bannerLinks');
+  links.innerHTML='';
+  _batchTokens.forEach(item=>{
+    const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;';
+    row.innerHTML=`<a href="/uni/serve/${item.token}" class="btn btn-primary" style="text-decoration:none;font-size:13px;" download>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      ${item.name} (${item.size_mb} MB)</a>
+      <button onclick="deleteBannerFile('${item.token}',this.closest('div'))" class="btn btn-ghost"
+        style="color:var(--muted);padding:8px 10px;" title="Delete from server">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg></button>`;
+    links.appendChild(row);
+  });
+  banner.style.display='block';
+  setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+}
+
+function deleteBannerFile(token,rowEl){
+  fetch(`/uni/delete/${token}`,{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.ok){_batchTokens=_batchTokens.filter(t=>t.token!==token);rowEl?.remove();
+      if(!_batchTokens.length)document.getElementById('downloadBanner').style.display='none';}
+  });
+}
+
+// Load history on page load
+window.addEventListener('DOMContentLoaded', () => renderHistory('historyPanel'));
+</script>
+{% endblock %}

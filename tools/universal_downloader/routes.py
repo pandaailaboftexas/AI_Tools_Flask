@@ -1,6 +1,8 @@
 """
-tools/vimeo_downloader/routes.py
-Uses tools.shared. 7-attempt retry with random 2-7 s delay. Full multi-URL batch.
+tools/universal_downloader/routes.py
+Works with 1000+ sites yt-dlp supports: Twitter/X, Instagram, TikTok,
+SoundCloud, Twitch, Reddit, Facebook, Dailymotion, and many more.
+Same architecture as yt_downloader but without YouTube-specific flags.
 """
 import subprocess, json, shutil, os, re, uuid, secrets, time
 from flask import (Blueprint, render_template, request, Response,
@@ -14,8 +16,8 @@ from tools.shared import (
     retry_delays,
 )
 
-vimeo_bp = Blueprint('vimeo', __name__, template_folder='templates')
-_logger  = get_logger('vimeo_downloader')
+uni_bp  = Blueprint('uni', __name__, template_folder='templates')
+_logger = get_logger('universal_downloader')
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -45,15 +47,15 @@ def _dv(s):
 
 # ── Stop / Check ───────────────────────────────────────────────────────────
 
-@vimeo_bp.route('/stop/<job_id>', methods=['POST'])
+@uni_bp.route('/stop/<job_id>', methods=['POST'])
 def stop(job_id): return json.dumps(stop_job(job_id))
 
-@vimeo_bp.route('/check_ffmpeg')
+@uni_bp.route('/check_ffmpeg')
 def check_ffmpeg(): return json.dumps({'available': _ffmpeg()})
 
 # ── File serving ───────────────────────────────────────────────────────────
 
-@vimeo_bp.route('/serve/<token>')
+@uni_bp.route('/serve/<token>')
 def serve_file(token):
     fpath = get_token_path(token)
     if not fpath or not os.path.exists(fpath): abort(404)
@@ -62,7 +64,7 @@ def serve_file(token):
     return send_file(fpath, mimetype=mime, as_attachment=True,
                      download_name=os.path.basename(fpath))
 
-@vimeo_bp.route('/delete/<token>', methods=['POST'])
+@uni_bp.route('/delete/<token>', methods=['POST'])
 def delete_file(token):
     fpath = pop_token(token)
     if not fpath: return json.dumps({'ok': False, 'msg': 'Invalid token'})
@@ -72,12 +74,12 @@ def delete_file(token):
     except Exception as e:
         return json.dumps({'ok': False, 'msg': str(e)})
 
-@vimeo_bp.route('/')
-def index(): return render_template('vimeo_downloader/index.html')
+@uni_bp.route('/')
+def index(): return render_template('universal_downloader/index.html')
 
 # ── Core: download video ───────────────────────────────────────────────────
 
-def _dl_video(url, save_path, quality, fmt, overwrite, password, subs, job_id):
+def _dl_video(url, save_path, quality, fmt, overwrite, subs, job_id):
     is_audio = quality.startswith('bestaudio')
     for attempt, sleep_s in retry_delays():
         if is_stopped(job_id): return
@@ -96,7 +98,6 @@ def _dl_video(url, save_path, quality, fmt, overwrite, password, subs, job_id):
                 '--progress', '--no-mtime', '--newline', '--print', 'after_move:filepath']
         if overwrite: cmd += ['--no-continue', '--force-overwrites']
         if subs:      cmd += ['--write-auto-sub', '--embed-subs']
-        if password:  cmd += ['--video-password', password]
         cmd.append(url)
 
         yield _sse('cmd', ' '.join(cmd))
@@ -127,7 +128,7 @@ def _dl_video(url, save_path, quality, fmt, overwrite, password, subs, job_id):
                 'name': os.path.basename(final_path), 'size_mb': size_mb, 'url': url}))
             return
 
-        _logger.error(f'[vimeo video attempt {attempt+1}] exit {rc} for {url}\n' + '\n'.join(lines))
+        _logger.error(f'[uni video attempt {attempt+1}] exit {rc} for {url}\n' + '\n'.join(lines))
         if attempt == 0:
             yield _sse('log', '⚠  Failed (attempt 1) — will retry with random delay')
 
@@ -135,7 +136,7 @@ def _dl_video(url, save_path, quality, fmt, overwrite, password, subs, job_id):
 
 # ── Core: download MP3 ─────────────────────────────────────────────────────
 
-def _dl_mp3(url, save_path, quality, overwrite, thumbnail, metadata, password, job_id):
+def _dl_mp3(url, save_path, quality, overwrite, thumbnail, metadata, job_id):
     has_ff = _ffmpeg()
     for attempt, sleep_s in retry_delays():
         if is_stopped(job_id): return
@@ -156,7 +157,6 @@ def _dl_mp3(url, save_path, quality, overwrite, thumbnail, metadata, password, j
                    '-o', os.path.join(save_path, '%(title)s.%(ext)s'),
                    '--progress', '--no-mtime', '--newline', '--print', 'after_move:filepath']
         if overwrite: cmd += ['--no-continue', '--force-overwrites']
-        if password:  cmd += ['--video-password', password]
         cmd.append(url)
 
         yield _sse('cmd', ' '.join(cmd))
@@ -187,7 +187,7 @@ def _dl_mp3(url, save_path, quality, overwrite, thumbnail, metadata, password, j
                 'name': os.path.basename(final_path), 'size_mb': size_mb, 'url': url}))
             return
 
-        _logger.error(f'[vimeo mp3 attempt {attempt+1}] exit {rc} for {url}\n' + '\n'.join(lines))
+        _logger.error(f'[uni mp3 attempt {attempt+1}] exit {rc} for {url}\n' + '\n'.join(lines))
         if attempt == 0:
             yield _sse('log', '⚠  Failed (attempt 1) — will retry with random delay')
 
@@ -214,7 +214,7 @@ def _batch(urls, per_url_gen, job_id, label):
 
 # ── 1. Video ───────────────────────────────────────────────────────────────
 
-@vimeo_bp.route('/download', methods=['POST'])
+@uni_bp.route('/download', methods=['POST'])
 def download():
     data = request.get_json(force=True) or {}
     raw_urls = data.get('url', '').strip()
@@ -228,7 +228,6 @@ def download():
     save_path = _expand(data.get('save_path', '~/Downloads'))
     overwrite = data.get('overwrite') == 'true'
     subs      = data.get('subs') == 'true'
-    password  = data.get('password', '').strip()
     job_id    = uuid.uuid4().hex
     os.makedirs(save_path, exist_ok=True)
 
@@ -236,8 +235,7 @@ def download():
         increment_active()
         try:
             yield from _batch(urls,
-                lambda url: _dl_video(url, save_path, quality, fmt,
-                                      overwrite, password, subs, job_id),
+                lambda url: _dl_video(url, save_path, quality, fmt, overwrite, subs, job_id),
                 job_id, 'Finished')
         finally:
             decrement_active(); release_slot()
@@ -246,7 +244,7 @@ def download():
 
 # ── 2. MP3 ─────────────────────────────────────────────────────────────────
 
-@vimeo_bp.route('/mp3', methods=['POST'])
+@uni_bp.route('/mp3', methods=['POST'])
 def mp3():
     data = request.get_json(force=True) or {}
     raw_urls = data.get('url', '').strip()
@@ -254,14 +252,13 @@ def mp3():
     if not acquire_slot():
         return _stream(iter([_sse('error', 'Server busy — too many downloads. Try again shortly.')]))
 
-    urls          = _split_urls(raw_urls)
-    audio_quality = data.get('audio_quality', '0')
-    overwrite     = data.get('overwrite') == 'true'
-    thumbnail     = data.get('thumbnail', 'true') == 'true'
-    metadata      = data.get('metadata', 'true') == 'true'
-    password      = data.get('password', '').strip()
-    save_path     = _expand(data.get('save_path', '~/Downloads'))
-    job_id        = uuid.uuid4().hex
+    urls       = _split_urls(raw_urls)
+    quality    = data.get('audio_quality', '0')
+    overwrite  = data.get('overwrite') == 'true'
+    thumbnail  = data.get('thumbnail', 'true') == 'true'
+    metadata   = data.get('metadata', 'true') == 'true'
+    save_path  = _expand(data.get('save_path', '~/Downloads'))
+    job_id     = uuid.uuid4().hex
     os.makedirs(save_path, exist_ok=True)
 
     def generate():
@@ -270,113 +267,10 @@ def mp3():
             if not _ffmpeg():
                 yield _sse('log', '⚠  ffmpeg not found — audio saved as .m4a')
             yield from _batch(urls,
-                lambda url: _dl_mp3(url, save_path, audio_quality, overwrite,
-                                    thumbnail, metadata, password, job_id),
+                lambda url: _dl_mp3(url, save_path, quality, overwrite,
+                                    thumbnail, metadata, job_id),
                 job_id, 'Finished')
         finally:
             decrement_active(); release_slot()
-
-    return _stream(generate())
-
-# ── 3. Transcript ──────────────────────────────────────────────────────────
-
-def _strip_srt(text):
-    lines, out, i = text.splitlines(), [], 0
-    while i < len(lines):
-        line = lines[i].strip()
-        if re.match(r'^\d+$', line): i += 1; continue
-        if re.match(r'^\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->', line): i += 1; continue
-        if line in ('WEBVTT', '') and i < 3: i += 1; continue
-        if line: out.append(line)
-        i += 1
-    deduped = []
-    for line in out:
-        if not deduped or line != deduped[-1]: deduped.append(line)
-    return '\n'.join(deduped)
-
-@vimeo_bp.route('/transcript', methods=['POST'])
-def transcript():
-    data = request.get_json(force=True) or {}
-    raw_urls = data.get('url', '').strip()
-    if not raw_urls: return _stream(iter([_sse('error', 'No URL provided.')]))
-
-    urls       = _split_urls(raw_urls)
-    save_path  = _expand(data.get('save_path', '~/Downloads'))
-    lang       = data.get('lang', 'en')
-    sub_format = data.get('sub_format', 'srt')
-    overwrite  = data.get('overwrite') == 'true'
-    strip_ts   = data.get('strip_timestamps', 'false') == 'true'
-    password   = data.get('password', '').strip()
-    job_id     = uuid.uuid4().hex
-    os.makedirs(save_path, exist_ok=True)
-
-    def run_one(url):
-        cmd = [_ytdlp(), '--skip-download',
-               '-o', f'{save_path}/%(title)s.%(ext)s', '--newline',
-               '--write-sub', '--write-auto-sub',
-               '--sub-langs', lang, '--sub-format', f'{sub_format}/best']
-        if overwrite: cmd += ['--force-overwrites']
-        if password:  cmd += ['--video-password', password]
-        cmd.append(url)
-
-        out_lines = []
-        yield _sse('cmd', ' '.join(cmd))
-        try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, text=True, bufsize=1)
-            register_job(job_id, proc)
-            for raw in proc.stdout:
-                if is_stopped(job_id): break
-                line = raw.rstrip('\n')
-                if not line: continue
-                out_lines.append(line); yield _sse('log', line)
-            proc.wait(); rc = proc.returncode; remove_job(job_id)
-        except Exception as exc:
-            remove_job(job_id); yield _sse('error', str(exc)); return
-
-        if is_stopped(job_id): yield _sse('stopped', 'Stopped by user.'); return
-        if rc != 0:
-            _logger.error(f'vimeo transcript exit {rc} for {url}\n' + '\n'.join(out_lines))
-            yield _sse('batch_error', url); return
-
-        saved = []
-        for line in out_lines:
-            m = re.search(r'(?:Writing.*?to|Destination):\s*(.+\.(?:srt|vtt|ass|json3|srv\d))', line, re.I)
-            if m: saved.append(m.group(1).strip())
-
-        has_written = any(('writing' in l.lower() or 'destination' in l.lower()) for l in out_lines)
-        combined = '\n'.join(out_lines).lower()
-
-        if not has_written:
-            if any(p in combined for p in ['no subtitles', 'has no subtitles']) or not out_lines:
-                yield _sse('no_transcript', f'No transcript: {url}'); return
-            yield _sse('done', 'Transcript downloaded ✓'); return
-
-        if strip_ts and saved:
-            yield _sse('log', '── Removing timestamps…')
-            for fpath in saved:
-                try:
-                    clean = _strip_srt(open(fpath, encoding='utf-8').read())
-                    txt = re.sub(r'\.[^.]+$', '.txt', fpath)
-                    open(txt, 'w', encoding='utf-8').write(clean)
-                    yield _sse('log', f'   Saved → {txt}')
-                except Exception as e: yield _sse('log', f'   Strip error: {e}')
-
-        yield _sse('done', f'Transcript saved ✓  →  {saved[0]}' if saved else 'Transcript downloaded ✓')
-
-    def generate():
-        total, failed = len(urls), []
-        if total > 1: yield _sse('log', f'📋  Batch: {total} URL(s)')
-        for i, url in enumerate(urls, 1):
-            if is_stopped(job_id): break
-            if total > 1: yield _sse('log', f'\n── [{i}/{total}] {url}')
-            for chunk in run_one(url):
-                if isinstance(chunk, str) and _ev(chunk) == 'batch_error':
-                    failed.append(_dv(chunk))
-                yield chunk
-        if failed:
-            yield _sse('batch_failed', 'Failed:\n' + '\n'.join(f'  • {u}' for u in failed))
-        if not is_stopped(job_id):
-            yield _sse('done', f'Done ✓  ({len(urls)-len(failed)}/{len(urls)} succeeded)')
 
     return _stream(generate())

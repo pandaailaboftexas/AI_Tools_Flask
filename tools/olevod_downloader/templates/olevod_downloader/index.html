@@ -8,7 +8,7 @@
     <h1>OleVOD Downloader</h1>
     <p>Paste a page URL and hit <strong>Download</strong> — stream detection and download happen automatically.</p>
   </div>
-  <a href="/yt/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">← YT Downloader</a>
+  <a href="/" class="btn btn-ghost" style="text-decoration:none;flex-shrink:0;margin-top:4px;">← Home</a>
 </div>
 
 <!-- Dependency status -->
@@ -46,61 +46,44 @@
   </button>
 </div>
 
-<!-- Active job cards (each URL gets its own card) -->
+<!-- Active job cards (each URL gets its own card, created dynamically) -->
 <div id="jobCards" style="display:flex;flex-direction:column;gap:14px;"></div>
 
-<!-- ── Ready-to-download banner (bottom of page) ───────────────────────────── -->
+<!-- Ready-to-download banner (bottom of page) -->
 <div id="readyBanner" style="display:none;margin-top:24px;padding:18px 20px;
   background:rgba(61,255,160,0.06);border:1px solid rgba(61,255,160,0.25);border-radius:14px;">
   <div style="font-size:14px;font-weight:700;color:var(--success);margin-bottom:10px;">✓ Ready to download</div>
   <div id="readyLinks" style="display:flex;flex-direction:column;gap:8px;"></div>
 </div>
 
+<!-- History panel -->
+<div class="history-panel" id="historyPanel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <h3 style="margin:0;">Recent URLs</h3>
+    <button class="history-clear-btn" onclick="historyClear()">Clear</button>
+  </div>
+  <div class="history-list"></div>
+</div>
+
 <style>
 .dep-ok  { color:var(--success); }
 .dep-bad { color:var(--warn); }
 
-/* job card */
-.job-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-}
-.job-card-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 13px 16px; background: var(--surface2); cursor: pointer;
-}
-.job-card-title {
-  flex: 1; font-size: 13px; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.job-badge {
-  font-size: 11px; font-family: var(--mono); padding: 3px 9px;
-  border-radius: 20px; flex-shrink: 0; white-space: nowrap;
-}
-.badge-active  { background: rgba(61,145,255,0.15); color: var(--accent); }
-.badge-done    { background: rgba(61,255,160,0.12); color: var(--success); }
-.badge-error   { background: rgba(255,80,80,0.12);  color: #ff5555; }
-.badge-stopped { background: var(--surface2);        color: var(--muted); }
-
-.job-card-body   { padding: 0 16px 14px; }
-.job-prog-wrap   { height: 3px; background: var(--surface2); }
-.job-prog-fill   { height: 100%; width: 0; transition: width .4s;
-                   background: linear-gradient(90deg, var(--accent), var(--accent2)); }
-.job-term {
-  font-family: var(--mono); font-size: 11px; line-height: 1.7;
-  background: var(--bg); border-radius: 8px; padding: 10px 12px;
-  max-height: 180px; overflow-y: auto; margin-top: 10px; color: var(--muted);
-  white-space: pre-wrap; word-break: break-all;
-}
-.job-stop-btn {
-  font-size: 12px; padding: 5px 11px; border-radius: 6px;
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--muted); cursor: pointer; transition: all .15s; flex-shrink: 0;
-}
-.job-stop-btn:hover:not([disabled]) { color: var(--accent); border-color: var(--accent); }
-.job-stop-btn[disabled] { opacity: .3; cursor: not-allowed; }
+.job-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.job-card-header { display:flex; align-items:center; gap:12px; padding:13px 16px; background:var(--surface2); cursor:pointer; }
+.job-card-title { flex:1; font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.job-badge { font-size:11px; font-family:var(--mono); padding:3px 9px; border-radius:20px; flex-shrink:0; white-space:nowrap; }
+.badge-active  { background:rgba(61,145,255,0.15); color:var(--accent); }
+.badge-done    { background:rgba(61,255,160,0.12); color:var(--success); }
+.badge-error   { background:rgba(255,80,80,0.12);  color:#ff5555; }
+.badge-stopped { background:var(--surface2); color:var(--muted); }
+.job-card-body { padding:0 16px 14px; }
+.job-prog-wrap { height:3px; background:var(--surface2); }
+.job-prog-fill { height:100%; width:0; transition:width .4s; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+.job-term { font-family:var(--mono); font-size:11px; line-height:1.7; background:var(--bg); border-radius:8px; padding:10px 12px; max-height:180px; overflow-y:auto; margin-top:10px; color:var(--muted); white-space:pre-wrap; word-break:break-all; }
+.job-stop-btn { font-size:12px; padding:5px 11px; border-radius:6px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); cursor:pointer; transition:all .15s; flex-shrink:0; }
+.job-stop-btn:hover:not([disabled]) { color:var(--accent); border-color:var(--accent); }
+.job-stop-btn[disabled] { opacity:.3; cursor:not-allowed; }
 </style>
 
 <script>
@@ -132,8 +115,8 @@ function updateCount() {
   document.getElementById('urlCount').textContent = n > 1 ? `${n} URLs queued` : '';
 }
 
-// ── Token map & banner (page-level, collects all finished jobs) ─────────────
-const _jobTokens = {};   // jobId → token
+// ── Token map & ready banner ───────────────────────────────────────────────
+const _jobTokens = {};
 
 function _addToReadyBanner(jobId, info) {
   _jobTokens[jobId] = info.token;
@@ -226,35 +209,36 @@ function startAll() {
   const urls = getURLs();
   if (!urls.length) {
     const ta = document.getElementById('pageUrls');
-    ta.style.borderColor = 'var(--accent)';
-    ta.focus();
-    setTimeout(() => ta.style.borderColor = '', 1500);
-    return;
+    ta.style.borderColor = 'var(--accent)'; ta.focus();
+    setTimeout(() => ta.style.borderColor = '', 1500); return;
   }
   const baseName = document.getElementById('filename').value.trim();
+
+  // Add to history
+  urls.forEach(u => historyAdd(u, 'olevod'));
+  setTimeout(() => renderHistory('historyPanel'), 100);
+
   urls.forEach(url => {
-    // Generate a UUID-like jobId fully client-side (no server round-trip)
-    const jobId = (crypto.randomUUID ? crypto.randomUUID()
-                  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-                      const r = Math.random() * 16 | 0;
-                      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-                    }));
-    // Use baseName only for single-URL runs; multi-URL runs auto-name
+    const jobId = crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
     const fname = urls.length === 1 ? baseName : '';
     createCard(jobId, url);
     runJob(jobId, url, fname);
   });
 }
 
-// ── Run one job (SSE) ──────────────────────────────────────────────────────
+// ── Run one job via SSE ────────────────────────────────────────────────────
 function runJob(jobId, pageUrl, filename) {
   fetch(`/olevod/start/${jobId}`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ page_url: pageUrl, filename, timeout: 30 }),
   }).then(res => {
-    const reader = res.body.getReader();
-    const dec    = new TextDecoder();
+    const reader = res.body.getReader(), dec = new TextDecoder();
     let buf = '';
     function read() {
       reader.read().then(({ done, value }) => {
@@ -279,7 +263,7 @@ function runJob(jobId, pageUrl, filename) {
   });
 }
 
-// ── SSE handler ────────────────────────────────────────────────────────────
+// ── SSE event handler ──────────────────────────────────────────────────────
 function handleSSE(jobId, raw) {
   if (!raw.trim()) return;
   let event = 'log', data = '';
@@ -293,72 +277,54 @@ function handleSSE(jobId, raw) {
 
   switch (event) {
     case 'cmd':
-      jLog(jobId, '$ ' + data, 'log-cmd');
-      break;
-
+      jLog(jobId, '$ ' + data, 'log-cmd'); break;
     case 'log':
-      if (data) jLog(jobId, data, 'log-dim');
-      break;
-
+      if (data) jLog(jobId, data, 'log-dim'); break;
     case 'progress': {
       const m = data.match(/([\d.]+)%/);
-      if (m) {
-        setProg(jobId, parseFloat(m[1]));
-        setBadge(jobId, `⬇ ${m[1]}%`, 'badge-active');
-      }
-      // In-place progress line (avoids flooding the terminal)
+      if (m) { setProg(jobId, parseFloat(m[1])); setBadge(jobId, `⬇ ${m[1]}%`, 'badge-active'); }
       const term = document.getElementById(`term-${jobId}`);
       if (term) {
         let live = term.querySelector('.prog-live');
         if (!live) {
           live = document.createElement('span');
           live.className = 'log-line log-progress prog-live';
-          term.appendChild(live);
-          term.appendChild(document.createTextNode('\n'));
+          term.appendChild(live); term.appendChild(document.createTextNode('\n'));
         }
-        live.textContent = '  ↓  ' + data;
-        term.scrollTop = term.scrollHeight;
+        live.textContent = '  ↓  ' + data; term.scrollTop = term.scrollHeight;
       }
       break;
     }
-
     case 'ready': {
       const info = JSON.parse(data);
-      setProg(jobId, 100);
-      setBadge(jobId, '✓ Done', 'badge-done');
-      _addToReadyBanner(jobId, info);
-      break;
+      setProg(jobId, 100); setBadge(jobId, '✓ Done', 'badge-done');
+      _addToReadyBanner(jobId, info); break;
     }
-
     case 'done':
       jLog(jobId, '✓ ' + data, 'log-success');
       setBadge(jobId, '✓ Done', 'badge-done');
-      document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', '');
-      break;
-
+      document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', ''); break;
     case 'error':
       jLog(jobId, '✗ ' + data, 'log-error');
       setBadge(jobId, '✗ Error', 'badge-error');
-      document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', '');
-      break;
-
+      document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', ''); break;
     case 'stopped':
       jLog(jobId, '⏹ ' + data, 'log-warn');
       setBadge(jobId, '⏹ Stopped', 'badge-stopped');
-      document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', '');
-      break;
+      document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', ''); break;
   }
 }
 
-// ── Stop ───────────────────────────────────────────────────────────────────
+// ── Stop job ───────────────────────────────────────────────────────────────
 function stopJob(jobId) {
-  fetch(`/olevod/stop/${jobId}`, { method: 'POST' })
-    .then(r => r.json())
-    .then(d => {
-      jLog(jobId, '⏹ ' + d.msg, 'log-warn');
-      setBadge(jobId, '⏹ Stopped', 'badge-stopped');
-      document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', '');
-    });
+  fetch(`/olevod/stop/${jobId}`, { method: 'POST' }).then(r => r.json()).then(d => {
+    jLog(jobId, '⏹ ' + d.msg, 'log-warn');
+    setBadge(jobId, '⏹ Stopped', 'badge-stopped');
+    document.getElementById(`stop-${jobId}`)?.setAttribute('disabled', '');
+  });
 }
+
+// ── Load history on page load ──────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => renderHistory('historyPanel'));
 </script>
 {% endblock %}
