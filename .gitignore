@@ -2,3 +2,4 @@ tools/olevod_downloader/downloads/
 tools/yt_downloader/downloads/
 __pycache__/
 *.pyc
+venv/

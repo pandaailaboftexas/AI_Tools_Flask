@@ -1,5 +1,17 @@
-flask>=3.0
-yt-dlp>=2024.1.1
-playwright>=1.40
-gunicorn>=21.0
+# ── System dependencies (install manually, not via pip) ───────────────────
+# sudo apt install -y ffmpeg
+# sudo apt install -y nodejs
+# deno is installed at /usr/local/bin/deno
+#
+# yt-dlp config (~/.config/yt-dlp/config):
+#   --js-runtimes deno
+#   --remote-components ejs:github
+ 
+# ── Python dependencies ────────────────────────────────────────────────────
+flask>=3.1
+yt-dlp>=2026.3.17
+playwright>=1.50
+gunicorn>=23.0
 python-dotenv>=1.0
+ 
+

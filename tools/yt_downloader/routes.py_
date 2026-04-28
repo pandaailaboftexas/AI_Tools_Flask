@@ -131,21 +131,13 @@ def _dl_video(url, save_path, quality, fmt, overwrite, android, subs, job_id):
 
         if is_stopped(job_id): yield _sse('stopped', 'Stopped by user.'); return
 
-        if rc == 0:
-            # Fallback: if --print after_move didn't match, find the newest file
-            if not final_path or not os.path.exists(final_path):
-                import glob as _g
-                cands = [f for f in _g.glob(os.path.join(save_path, '*'))
-                         if os.path.isfile(f) and not f.endswith('.part')]
-                if cands:
-                    final_path = max(cands, key=os.path.getmtime)
-            if final_path and os.path.exists(final_path):
-                size_mb = round(os.path.getsize(final_path) / 1_048_576, 1)
-                token   = secrets.token_urlsafe(32)
-                register_token(token, final_path)
-                yield _sse('ready', json.dumps({'token': token,
-                    'name': os.path.basename(final_path), 'size_mb': size_mb, 'url': url}))
-                return
+        if rc == 0 and final_path and os.path.exists(final_path):
+            size_mb = round(os.path.getsize(final_path) / 1_048_576, 1)
+            token   = secrets.token_urlsafe(32)
+            register_token(token, final_path)
+            yield _sse('ready', json.dumps({'token': token,
+                'name': os.path.basename(final_path), 'size_mb': size_mb, 'url': url}))
+            return
 
         _logger.error(f'[yt video attempt {attempt+1}] exit {rc} for {url}\n' + '\n'.join(lines))
         if attempt == 0:
@@ -201,20 +193,13 @@ def _dl_mp3(url, save_path, quality, overwrite, android, thumbnail, metadata, jo
 
         if is_stopped(job_id): yield _sse('stopped', 'Stopped by user.'); return
 
-        if rc == 0:
-            if not final_path or not os.path.exists(final_path):
-                import glob as _g
-                cands = [f for f in _g.glob(os.path.join(save_path, '*'))
-                         if os.path.isfile(f) and not f.endswith('.part')]
-                if cands:
-                    final_path = max(cands, key=os.path.getmtime)
-            if final_path and os.path.exists(final_path):
-                size_mb = round(os.path.getsize(final_path) / 1_048_576, 1)
-                token   = secrets.token_urlsafe(32)
-                register_token(token, final_path)
-                yield _sse('ready', json.dumps({'token': token,
-                    'name': os.path.basename(final_path), 'size_mb': size_mb, 'url': url}))
-                return
+        if rc == 0 and final_path and os.path.exists(final_path):
+            size_mb = round(os.path.getsize(final_path) / 1_048_576, 1)
+            token   = secrets.token_urlsafe(32)
+            register_token(token, final_path)
+            yield _sse('ready', json.dumps({'token': token,
+                'name': os.path.basename(final_path), 'size_mb': size_mb, 'url': url}))
+            return
 
         _logger.error(f'[yt mp3 attempt {attempt+1}] exit {rc} for {url}\n' + '\n'.join(lines))
         if attempt == 0:
